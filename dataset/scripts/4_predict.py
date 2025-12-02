@@ -13,6 +13,7 @@ MODEL_PATH = os.path.join(MODELS_DIR, "faces_cnn_best.keras")
 CLASS_INDICES_PATH = os.path.join(MODELS_DIR, "class_indices.json")
 
 IMG_SIZE = (160, 160)
+CONFIDENCE_THRESHOLD = 0.50  # Umbral de confianza para reconocimiento (ajustado)
 
 print("\n Cargando modelo...")
 model = tf.keras.models.load_model(MODEL_PATH)
@@ -52,12 +53,20 @@ def predecir(path):
     if rostro is None:
         return "No detectado", 0
 
-    rostro = np.expand_dims(rostro, axis=0)
-    preds = model.predict(rostro, verbose=0)[0]
+    # Preprocesar para CNN personalizada (solo normalización 0-1 ya hecha en detectar_rostro)
+    # rostro ya viene dividido por 255.0 desde detectar_rostro
+    rostro_processed = np.expand_dims(rostro, axis=0)
+    
+    preds = model.predict(rostro_processed, verbose=0)[0]
 
     idx = int(np.argmax(preds))
-    name = idx_to_class[str(idx)]
     conf = preds[idx] * 100
+    
+    # Aplicar umbral de confianza
+    if conf < CONFIDENCE_THRESHOLD * 100:
+        return "DESCONOCIDO", conf
+    
+    name = idx_to_class[str(idx)]
     return name, conf
 
 
@@ -72,6 +81,8 @@ for file in os.listdir(TEST_DIR):
 
     if pred == "No detectado":
         print(f"❌ {file} → No se detectó rostro")
+    elif pred == "DESCONOCIDO":
+        print(f"⚠️  {file} → DESCONOCIDO (confianza baja: {conf:.2f}%)")
     else:
         print(f"✅ {file} → {pred} ({conf:.2f}%)")
 
@@ -94,4 +105,11 @@ for person in os.listdir(CLEAN_DIR):
 
     pred, conf = predecir(sample_path)
 
-    print(f" {person:<10} | archivo: {sample:<20} → {pred} ({conf:.2f}%)")
+    if pred == person:
+        emoji = "✅"
+    elif pred == "DESCONOCIDO":
+        emoji = "⚠️"
+    else:
+        emoji = "❌"
+    
+    print(f"{emoji} {person:<10} | archivo: {sample:<20} → {pred} ({conf:.2f}%)")

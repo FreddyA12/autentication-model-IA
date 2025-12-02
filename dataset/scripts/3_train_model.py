@@ -2,6 +2,7 @@ import os
 import json
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tensorflow.keras import layers, models, Input
 
 DATASET_DIR = "dataset/dataset_clean"
 MODELS_DIR = "dataset/models"
@@ -13,7 +14,7 @@ CLASS_INDICES_PATH = os.path.join(MODELS_DIR, "class_indices.json")
 
 IMG_SIZE = (160, 160)
 BATCH_SIZE = 32
-EPOCHS = 35
+EPOCHS = 50
 SEED = 42
 
 train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -41,44 +42,75 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 train_ds = train_ds.map(
     lambda x, y: ((tf.cast(x, tf.float32) / 255.0), y),
-    num_parallel_calls=AUTOTUNE
+    num_parallel_calls=AUTOTUNE,
 )
 
 val_ds = val_ds.map(
     lambda x, y: ((tf.cast(x, tf.float32) / 255.0), y),
-    num_parallel_calls=AUTOTUNE
+    num_parallel_calls=AUTOTUNE,
 )
 
 train_ds = train_ds.cache().prefetch(AUTOTUNE)
 val_ds = val_ds.cache().prefetch(AUTOTUNE)
 
-inputs = tf.keras.Input(shape=(*IMG_SIZE, 3))
-
-x = tf.keras.layers.Conv2D(32, 3, activation="relu", padding="same")(inputs)
-x = tf.keras.layers.MaxPooling2D()(x)
-
-x = tf.keras.layers.Conv2D(64, 3, activation="relu", padding="same")(x)
-x = tf.keras.layers.MaxPooling2D()(x)
-
-x = tf.keras.layers.Conv2D(128, 3, activation="relu", padding="same")(x)
-x = tf.keras.layers.MaxPooling2D()(x)
-
-x = tf.keras.layers.Conv2D(256, 3, activation="relu", padding="same")(x)
-x = tf.keras.layers.MaxPooling2D()(x)
-
-x = tf.keras.layers.Flatten()(x)
-x = tf.keras.layers.Dense(256, activation="relu")(x)
-x = tf.keras.layers.Dropout(0.35)(x)
-
-outputs = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
-
-model = tf.keras.Model(inputs, outputs)
-
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(1e-4),
-    loss="sparse_categorical_crossentropy",
-    metrics=["accuracy"]
+# Data augmentation mejorado
+data_augmentation = tf.keras.Sequential(
+    [
+        tf.keras.layers.RandomFlip("horizontal"),
+        tf.keras.layers.RandomRotation(0.1),
+        tf.keras.layers.RandomZoom(0.1),
+        tf.keras.layers.RandomBrightness(0.1),
+        tf.keras.layers.RandomContrast(0.1),
+    ]
 )
+
+# Construir CNN personalizada desde cero
+print("Construyendo modelo CNN personalizado...")
+
+inputs = Input(shape=(*IMG_SIZE, 3))
+x = data_augmentation(inputs)
+
+# Bloque 1
+x = layers.Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling2D((2, 2))(x)
+x = layers.Dropout(0.2)(x)
+
+# Bloque 2
+x = layers.Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling2D((2, 2))(x)
+x = layers.Dropout(0.2)(x)
+
+# Bloque 3
+x = layers.Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling2D((2, 2))(x)
+x = layers.Dropout(0.3)(x)
+
+# Bloque 4
+x = layers.Conv2D(256, (3, 3), padding='same', activation='relu')(x)
+x = layers.BatchNormalization()(x)
+x = layers.MaxPooling2D((2, 2))(x)
+x = layers.Dropout(0.3)(x)
+
+# Clasificación
+x = layers.GlobalAveragePooling2D()(x)
+x = layers.Dense(256, activation='relu')(x)
+x = layers.BatchNormalization()(x)
+x = layers.Dropout(0.5)(x)
+
+outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+model = models.Model(inputs, outputs)
+
+# Compilar el modelo
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"],
+)
+
 
 model.summary()
 
@@ -91,8 +123,16 @@ callbacks = [
     ),
     tf.keras.callbacks.EarlyStopping(
         monitor="val_loss",
-        patience=8,
-        restore_best_weights=True
+        patience=10,  # Más paciencia
+        restore_best_weights=True,
+        verbose=1
+    ),
+    tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss",
+        factor=0.5,
+        patience=5,
+        verbose=1,
+        min_lr=1e-7
     )
 ]
 

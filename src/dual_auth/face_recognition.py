@@ -16,10 +16,16 @@ class FaceRecognizer:
         model_path: Path,
         class_mapping_path: Path,
         img_size: Tuple[int, int] = (160, 160),
-        detection_threshold: float = 0.9,
+        detection_threshold: float = 0.8,
+        recognition_threshold: float = 0.7,
+        allow_unknown: bool = True,
+        unknown_label: str = "Desconocido",
     ) -> None:
         self.img_size = img_size
         self.detection_threshold = detection_threshold
+        self.recognition_threshold = recognition_threshold
+        self.allow_unknown = allow_unknown
+        self.unknown_label = unknown_label
         self.model = tf.keras.models.load_model(str(model_path))
         self.detector = MTCNN()
         self.idx_to_class = self._load_class_mapping(class_mapping_path)
@@ -73,6 +79,8 @@ class FaceRecognizer:
         idx = int(np.argmax(preds))
         label = self.idx_to_class[str(idx)]
         confidence = float(preds[idx])
+        if self.allow_unknown and confidence < self.recognition_threshold:
+            return self.unknown_label, confidence
         return label, confidence
 
     def predict_from_path(self, image_path: Path) -> Optional[Tuple[str, float]]:
