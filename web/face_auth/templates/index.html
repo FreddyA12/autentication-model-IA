@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reconocimiento Facial</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="15" cy="16" r="2" fill="currentColor"/>
+                    <circle cx="25" cy="16" r="2" fill="currentColor"/>
+                    <path d="M 14 26 Q 20 30, 26 26" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+                <h1>Reconocimiento Facial</h1>
+            </div>
+            <p class="subtitle">Sistema de autenticación biométrica con IA</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Camera Section -->
+            <div class="camera-section">
+                <div class="camera-container" id="cameraContainer">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    
+                    <!-- Camera Overlay -->
+                    <div class="camera-overlay">
+                        <div class="face-guide">
+                            <div class="corner top-left"></div>
+                            <div class="corner top-right"></div>
+                            <div class="corner bottom-left"></div>
+                            <div class="corner bottom-right"></div>
+                        </div>
+                    </div>
+
+                    <!-- Camera Status -->
+                    <div class="camera-status" id="cameraStatus">
+                        <span class="status-icon">📷</span>
+                        <span class="status-text">Cámara desactivada</span>
+                    </div>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="camera-controls">
+                    <button id="startCamera" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm12 0v10l4 2V3l-4 2z"/>
+                        </svg>
+                        Activar Cámara
+                    </button>
+                    <button id="captureBtn" class="btn btn-success" disabled>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <circle cx="10" cy="10" r="8"/>
+                        </svg>
+                        Capturar y Autenticar
+                    </button>
+                    <button id="stopCamera" class="btn btn-secondary" disabled>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <rect width="20" height="20" rx="2"/>
+                        </svg>
+                        Detener
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <div class="result-card" id="resultCard">
+                    <div class="result-icon">
+                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                            <circle cx="40" cy="40" r="38" stroke="currentColor" stroke-width="2" opacity="0.2"/>
+                            <path d="M 40 15 L 40 40 L 55 40" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Esperando captura...</h3>
+                    <p>Activa la cámara y captura una imagen para comenzar</p>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-state" id="loadingState" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Analizando rostro...</p>
+                </div>
+
+                <!-- Success State -->
+                <div class="success-state" id="successState" style="display: none;">
+                    <div class="success-icon">
+                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                            <circle cx="40" cy="40" r="38" stroke="#10b981" stroke-width="3"/>
+                            <path d="M 25 40 L 35 50 L 55 30" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="success-title">¡Autenticado!</h2>
+                    <div class="identity-info">
+                        <p class="identity-name" id="identityName">-</p>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                        <p class="confidence-text" id="confidenceText">0%</p>
+                    </div>
+                </div>
+
+                <!-- Unknown State -->
+                <div class="unknown-state" id="unknownState" style="display: none;">
+                    <div class="unknown-icon">
+                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                            <circle cx="40" cy="40" r="38" stroke="#f59e0b" stroke-width="3"/>
+                            <text x="40" y="55" font-size="50" text-anchor="middle" fill="#f59e0b">?</text>
+                        </svg>
+                    </div>
+                    <h2 class="unknown-title">Persona Desconocida</h2>
+                    <p class="unknown-message" id="unknownMessage">-</p>
+                </div>
+
+                <!-- Error State -->
+                <div class="error-state" id="errorState" style="display: none;">
+                    <div class="error-icon">
+                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                            <circle cx="40" cy="40" r="38" stroke="#ef4444" stroke-width="3"/>
+                            <path d="M 30 30 L 50 50 M 50 30 L 30 50" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="error-title">Error</h2>
+                    <p class="error-message" id="errorMessage">-</p>
+                </div>
+
+                <!-- Probabilities -->
+                <div class="probabilities" id="probabilitiesSection" style="display: none;">
+                    <h4>Probabilidades:</h4>
+                    <div id="probabilitiesList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <footer class="footer">
+            <div class="info-card">
+                <h4>📊 Cómo funciona</h4>
+                <ol>
+                    <li>Activa la cámara web</li>
+                    <li>Posiciona tu rostro en el cuadro guía</li>
+                    <li>Captura la imagen</li>
+                    <li>El sistema analizará tu rostro y mostrará el resultado</li>
+                </ol>
+            </div>
+            <div class="info-card">
+                <h4>🔒 Privacidad</h4>
+                <p>Las imágenes se procesan localmente y no se almacenan. El análisis usa redes neuronales entrenadas con FaceNet + CNN.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="{% static 'js/camera.js' %}"></script>
+</body>
+</html>

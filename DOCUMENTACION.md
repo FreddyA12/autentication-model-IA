@@ -2,7 +2,15 @@
 
 ## 🎯 Descripción General
 
-Este sistema permite reconocer rostros de personas específicas (Alison, Freddy, Isma) y detectar personas desconocidas. Utiliza **FaceNet** para extraer características faciales y **SVM** para clasificar.
+Sistema de reconocimiento facial basado en **FaceNet + Red Neuronal**.
+
+**Arquitectura:**
+```
+imagen → MTCNN → FaceNet → embedding (512) → TU RED NEURONAL → predicción
+```
+
+- **FaceNet**: Modelo preentrenado que extrae características faciales (NO se entrena)
+- **Tu Red Neuronal**: Clasificador que TÚ entrenas sobre los embeddings
 
 ---
 
@@ -15,41 +23,32 @@ APE3/
 │   │   ├── alison/
 │   │   ├── freddy/
 │   │   └── isma/
-│   ├── dataset_clean/         # Imágenes procesadas y alineadas
+│   ├── dataset_clean/         # Imágenes procesadas y alineadas (160x160)
 │   │   ├── alison/
 │   │   ├── freddy/
 │   │   └── isma/
-│   ├── embeddings/            # Vectores de características extraídos
-│   │   └── face_embeddings.pkl
+│   ├── embeddings/            # Vectores de 512 dimensiones
+│   │   └── embeddings_dataset.pkl
 │   ├── models/                # Modelos entrenados
-│   │   ├── face_svm.pkl
-│   │   ├── face_embedding_classifier.keras
-│   │   └── class_indices.json
-│   ├── test_data/             # Imágenes para probar el sistema
+│   │   ├── face_classifier.keras      # TU modelo entrenado
+│   │   ├── face_classifier_best.keras # Mejor checkpoint
+│   │   ├── class_indices.json         # Mapeo de clases
+│   │   └── training_history.png       # Gráfica de entrenamiento
+│   ├── test_data/             # Imágenes para probar
 │   ├── videos/                # Videos para extraer frames
 │   └── scripts/               # Scripts de procesamiento
-└── src/                       # Código fuente de la aplicación
+│       ├── 1_extract_frames.py
+│       ├── 2_preprocess_and_extract_embeddings.py
+│       ├── 3_train_classifier.py
+│       └── 4_predict.py
+└── src/                       # Código de la aplicación
 ```
 
 ---
 
-## 🔄 Pipeline de Entrenamiento
+## 🔄 Pipeline de Entrenamiento (4 Pasos)
 
-### Paso 1: Preparar Videos/Imágenes
-
-Coloca los videos o imágenes de cada persona en:
-```
-dataset/videos/
-```
-
-O directamente las imágenes en:
-```
-dataset/dataset_raw/{nombre_persona}/
-```
-
----
-
-### Paso 2: Extraer Frames de Videos (Opcional)
+### Paso 1: Preparar Datos (Opcional)
 
 Si tienes videos, extrae los frames:
 
@@ -57,97 +56,119 @@ Si tienes videos, extrae los frames:
 python dataset/scripts/1_extract_frames.py
 ```
 
-**¿Qué hace?**
-- Lee los videos de `dataset/videos/`
-- Extrae frames cada cierto intervalo
-- Guarda las imágenes en `dataset/dataset_raw/{persona}/`
+O coloca directamente las imágenes en `dataset/dataset_raw/{nombre_persona}/`
 
 ---
 
-### Paso 3: Preprocesar y Alinear Rostros
+### Paso 2: Preprocesar y Extraer Embeddings
 
 ```powershell
-python dataset/scripts/2_preprocess_aligned.py
+python dataset/scripts/2_preprocess_and_extract_embeddings.py
 ```
 
 **¿Qué hace?**
-1. Lee imágenes de `dataset/dataset_raw/`
-2. Detecta rostros usando **MTCNN**
-3. Alinea las caras usando los landmarks de los ojos
-4. Extrae **embeddings de 512 dimensiones** con FaceNet
-5. Guarda:
-   - Imágenes alineadas en `dataset/dataset_clean/`
-   - Embeddings en `dataset/embeddings/face_embeddings.pkl`
+```
+imagen → MTCNN → FaceNet → embedding (512 dimensiones)
+```
+
+1. **MTCNN** detecta y ALINEA las caras usando landmarks (ojos, nariz, boca)
+2. **FaceNet** convierte cada cara en un vector de 512 números
+3. Guarda:
+   - Imágenes alineadas en `dataset_clean/`
+   - Embeddings en `dataset/embeddings/embeddings_dataset.pkl`
+
+**¿Por qué embeddings?**
+- FaceNet ya aprendió a extraer características faciales
+- Dos caras de la MISMA persona → embeddings CERCANOS
+- Dos caras de personas DIFERENTES → embeddings LEJANOS
 
 **Salida esperada:**
 ```
-Procesando: alison (430 imágenes)
-  ✓ Procesadas: 429
-  ✗ Fallidas: 1
+X (embeddings):
+    Shape: (1373, 512)  ← 1373 imágenes, 512 dimensiones cada una
 
-Distancias promedio entre embeddings:
-  alison: 0.798 ± 0.160
-  freddy: 0.653 ± 0.167
-  isma: 0.665 ± 0.169
+y (etiquetas):
+    Shape: (1373,)      ← clase de cada imagen
 
-Distancias entre personas diferentes:
-  alison vs freddy: 1.382
-  alison vs isma: 1.122
-  freddy vs isma: 1.208
+Distancias INTRA-clase (misma persona):
+   alison: 0.798 ± 0.160
+   freddy: 0.653 ± 0.167
+   isma: 0.665 ± 0.169
+
+Distancias INTER-clase (diferentes personas):
+   alison vs freddy: 1.382
+   alison vs isma: 1.122
+   freddy vs isma: 1.208
 ```
-
-> **Nota:** Las distancias intra-clase (~0.6-0.8) deben ser menores que las inter-clase (~1.1-1.4) para un buen reconocimiento.
 
 ---
 
-### Paso 4: Entrenar el Clasificador
+### Paso 3: Entrenar TU Red Neuronal
 
 ```powershell
-python dataset/scripts/3_train_with_embeddings.py
+python dataset/scripts/3_train_classifier.py
 ```
 
 **¿Qué hace?**
-1. Carga los embeddings de `dataset/embeddings/`
-2. Entrena un clasificador **SVM** (Support Vector Machine)
-3. Entrena una **red neuronal** pequeña como alternativa
-4. Guarda los modelos en `dataset/models/`
+
+Entrena TU PROPIO MODELO sobre los embeddings.
+
+**Arquitectura (la que usan bancos y universidades):**
+```
+Input (512)
+    ↓
+Dense(256, relu) + Dropout(0.3)
+    ↓
+Dense(128, relu) + Dropout(0.2)
+    ↓
+Dense(num_clases, softmax)
+```
+
+**¿Por qué funciona tan bien?**
+- FaceNet ya hizo el trabajo duro (extraer características)
+- Tu red SOLO aprende a separar las clases
+- Con 400 imágenes por persona puedes lograr >99% accuracy
 
 **Salida esperada:**
 ```
-ENTRENANDO CLASIFICADOR SVM
-  Accuracy: 100.00%
-  Validación cruzada: 99.93% ± 0.15%
+Accuracy final: 100.00%
 
-ENTRENANDO CLASIFICADOR NEURAL
-  Accuracy: 100.00%
+Reporte de clasificación:
+              precision    recall  f1-score
+      alison       1.00      1.00      1.00
+      freddy       1.00      1.00      1.00
+        isma       1.00      1.00      1.00
 ```
-
-**Modelos generados:**
-- `face_svm.pkl` - Clasificador SVM
-- `face_embedding_classifier.keras` - Red neuronal
-- `class_indices.json` - Mapeo de clases
 
 ---
 
-### Paso 5: Probar el Sistema
+### Paso 4: Predecir
 
 ```powershell
-python dataset/scripts/4_predict_embeddings.py
+python dataset/scripts/4_predict.py
 ```
 
-**¿Qué hace?**
-1. Carga los modelos entrenados
-2. Prueba con imágenes de `dataset/test_data/`
-3. Prueba con muestras aleatorias del dataset
+**Pipeline de predicción:**
+```
+imagen → MTCNN → FaceNet → embedding → TU MODELO → probabilidades
+                                                        ↓
+                                                Freddy: 92%
+                                                Melanie: 7%
+                                                Jose: 1%
+```
+
+**Regla de decisión:**
+- Si max_prob >= 50% → ES esa persona
+- Si max_prob < 50% → DESCONOCIDO
 
 **Salida esperada:**
 ```
 PROBANDO IMÁGENES EXTERNAS
-✅ alison.jpg    → alison (conf: 99.6%, dist: 0.58)
-✅ freddy2.jpg   → freddy (conf: 98.8%, dist: 0.52)
-✅ isma.jpg      → isma (conf: 100.0%, dist: 0.46)
-⚠️  rafa.jpg     → DESCONOCIDO (conf: 67.1%, dist: 1.23)
-⚠️  william.jpg  → DESCONOCIDO (conf: 44.6%, dist: 0.86)
+   ✅ alison.jpg    → alison (99.6%)
+   ✅ freddy2.jpg   → freddy (98.8%)
+   ✅ isma.jpg      → isma (100.0%)
+   ⚠️  rafa.jpg     → DESCONOCIDO (max: 67.1%)
+   ⚠️  william.jpg  → DESCONOCIDO (max: 44.6%)
 ```
 
 ---
@@ -157,129 +178,61 @@ PROBANDO IMÁGENES EXTERNAS
 | Paso | Comando | Descripción |
 |------|---------|-------------|
 | 1 | `python dataset/scripts/1_extract_frames.py` | Extrae frames de videos |
-| 2 | `python dataset/scripts/2_preprocess_aligned.py` | Preprocesa y extrae embeddings |
-| 3 | `python dataset/scripts/3_train_with_embeddings.py` | Entrena clasificador |
-| 4 | `python dataset/scripts/4_predict_embeddings.py` | Prueba el sistema |
+| 2 | `python dataset/scripts/2_preprocess_and_extract_embeddings.py` | Preprocesa + extrae embeddings |
+| 3 | `python dataset/scripts/3_train_classifier.py` | Entrena TU red neuronal |
+| 4 | `python dataset/scripts/4_predict.py` | Prueba el sistema |
 
 ---
 
-## ⚙️ Configuración y Umbrales
+## ⚙️ Configuración
 
-### En `4_predict_embeddings.py`:
+### Umbral de confianza (en `4_predict.py`):
 
 ```python
-CONFIDENCE_THRESHOLD = 0.60  # Mínima confianza para aceptar predicción
-DISTANCE_THRESHOLD = 1.0     # Máxima distancia para considerar conocido
+CONFIDENCE_THRESHOLD = 0.50  # 50%
 ```
 
-- Si la **confianza < 60%** → Se marca como DESCONOCIDO
-- Si la **distancia > 1.0** → Se marca como DESCONOCIDO
-
-### Ajustar umbrales:
-- **Aumentar `CONFIDENCE_THRESHOLD`** → Más estricto (menos falsos positivos)
-- **Disminuir `DISTANCE_THRESHOLD`** → Más estricto
+- **Aumentar** (ej: 0.70) → Más estricto, menos falsos positivos
+- **Disminuir** (ej: 0.40) → Menos estricto, menos falsos negativos
 
 ---
 
 ## 🆕 Agregar una Nueva Persona
 
-1. Crear carpeta con el nombre en `dataset/dataset_raw/`:
+1. Crear carpeta:
    ```
    dataset/dataset_raw/nueva_persona/
    ```
 
 2. Agregar imágenes (mínimo 100, idealmente 300+)
 
-3. Ejecutar el pipeline completo:
+3. Ejecutar pipeline:
    ```powershell
-   python dataset/scripts/2_preprocess_aligned.py
-   python dataset/scripts/3_train_with_embeddings.py
-   ```
-
-4. Verificar:
-   ```powershell
-   python dataset/scripts/4_predict_embeddings.py
+   python dataset/scripts/2_preprocess_and_extract_embeddings.py
+   python dataset/scripts/3_train_classifier.py
    ```
 
 ---
 
-## 🔧 Tecnologías Utilizadas
+## 🔧 Tecnologías
 
 | Componente | Tecnología | Propósito |
 |------------|------------|-----------|
-| Detección de rostros | MTCNN | Detecta y alinea caras |
-| Extracción de features | FaceNet (InceptionResnetV1) | Genera embeddings de 512D |
-| Clasificación | SVM / Red Neural | Identifica a la persona |
+| Detección | MTCNN | Detecta y alinea caras |
+| Embeddings | FaceNet (InceptionResnetV1) | Extrae vectores de 512D |
+| Clasificación | Tu Red Neuronal | Identifica personas |
 | Framework | TensorFlow + PyTorch | Deep Learning |
-
----
-
-## 📊 Métricas de Calidad
-
-### Distancias de Embeddings:
-- **Intra-clase** (misma persona): Debe ser **< 1.0**
-- **Inter-clase** (diferentes personas): Debe ser **> 1.0**
-- **Ratio ideal**: Inter/Intra > 1.5
-
-### Resultados actuales:
-| Persona | Distancia Intra-clase |
-|---------|----------------------|
-| alison | 0.798 ± 0.160 |
-| freddy | 0.653 ± 0.167 |
-| isma | 0.665 ± 0.169 |
-
-| Comparación | Distancia Inter-clase |
-|-------------|----------------------|
-| alison vs freddy | 1.382 |
-| alison vs isma | 1.122 |
-| freddy vs isma | 1.208 |
 
 ---
 
 ## ❓ Solución de Problemas
 
-### El sistema no detecta rostros
-- Verificar que las imágenes tengan buena iluminación
-- Verificar que los rostros no estén muy pequeños o borrosos
-- El rostro debe ocupar al menos 40x40 píxeles
-
 ### Baja precisión
-- Agregar más imágenes de entrenamiento
-- Asegurar variedad: diferentes ángulos, iluminación, expresiones
-- Verificar que las distancias inter-clase sean mayores que intra-clase
+- Agregar más imágenes variadas (ángulos, luz, expresiones)
+- Verificar que distancias inter-clase > intra-clase
 
-### Muchos falsos positivos (reconoce desconocidos como conocidos)
+### Muchos "DESCONOCIDO"
+- Disminuir `CONFIDENCE_THRESHOLD` (ej: 0.40)
+
+### Falsos positivos (reconoce desconocidos)
 - Aumentar `CONFIDENCE_THRESHOLD` (ej: 0.70)
-- Disminuir `DISTANCE_THRESHOLD` (ej: 0.9)
-
-### Muchos falsos negativos (no reconoce personas conocidas)
-- Disminuir `CONFIDENCE_THRESHOLD` (ej: 0.50)
-- Aumentar `DISTANCE_THRESHOLD` (ej: 1.2)
-- Agregar más imágenes de esa persona
-
----
-
-## 📝 Notas Importantes
-
-1. **FaceNet es un modelo preentrenado** en millones de caras (VGGFace2). Solo el clasificador SVM/Neural se entrena con tus datos.
-
-2. **Cantidad de datos recomendada:**
-   - Mínimo: 100 imágenes por persona
-   - Óptimo: 300-500 imágenes por persona
-   - Las imágenes deben tener variedad
-
-3. **Formato de imágenes:** JPG, PNG o JPEG
-
-4. **Tamaño procesado:** 160x160 píxeles (automático)
-
----
-
-## 🚀 Uso en Producción
-
-Para usar el sistema en tiempo real (cámara web), ejecuta:
-
-```powershell
-python src/dual_auth/run_dual_auth_live.py
-```
-
-Esto activará la cámara y realizará reconocimiento facial en vivo.
