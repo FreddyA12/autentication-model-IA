@@ -93,24 +93,32 @@ class FaceRecognitionService:
             return candidate
         raise FileNotFoundError(f"No se encontró el modelo en {path}")
 
-    def extract_embedding(self, image_bytes: bytes) -> Optional[np.ndarray]:
-        """Devuelve embedding de 512 dim o None si no detecta rostro."""
+    def extract_embedding(self, image_bytes: bytes):
+        """Devuelve (embedding, box, score) o (None, None, None) si no detecta."""
         try:
             img = Image.open(BytesIO(image_bytes)).convert("RGB")
+            boxes, probs = self.mtcnn.detect(img)
+            if boxes is None or len(boxes) == 0:
+                return None, None, None
+
+            box = boxes[0].tolist()
+            box_score = float(probs[0])
+
             face_tensor = self.mtcnn(img)
             if face_tensor is None:
-                return None
+                return None, None, None
+
             with torch.no_grad():
                 face_batch = face_tensor.unsqueeze(0).to(self.device)
                 embedding = self.facenet(face_batch)
-            return embedding.cpu().numpy().flatten()
+            return embedding.cpu().numpy().flatten(), box, box_score
         except Exception as e:
             print(f"[FaceAuth] Error al extraer embedding: {e}")
-            return None
+            return None, None, None
 
     def predict(self, image_bytes: bytes) -> Dict:
         """Predice identidad con el clasificador sobre el embedding."""
-        embedding = self.extract_embedding(image_bytes)
+        embedding, box, box_score = self.extract_embedding(image_bytes)
         if embedding is None:
             return {
                 "success": False,
@@ -118,6 +126,7 @@ class FaceRecognitionService:
                 "confidence": 0,
                 "probabilities": {},
                 "message": "No se detectó ningún rostro en la imagen",
+                "box": None,
             }
 
         embedding_batch = np.expand_dims(embedding, axis=0)
@@ -146,6 +155,8 @@ class FaceRecognitionService:
             "confidence": max_confidence * 100,
             "probabilities": probabilities,
             "message": message,
+            "box": box,
+            "box_score": box_score,
         }
 
 

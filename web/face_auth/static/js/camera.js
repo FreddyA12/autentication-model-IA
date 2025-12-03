@@ -1,5 +1,5 @@
 /**
- * Camera and Face Recognition Handler
+ * Camera and Face Recognition Handler (auto-capture + box overlay)
  */
 
 class FaceAuthApp {
@@ -12,9 +12,18 @@ class FaceAuthApp {
         this.stopCameraBtn = document.getElementById('stopCamera');
         this.captureBtn = document.getElementById('captureBtn');
         this.cameraStatus = document.getElementById('cameraStatus');
+        this.detectedBox = document.getElementById('detectedBox');
+        this.motionCanvas = document.createElement('canvas');
+        this.motionCtx = this.motionCanvas.getContext('2d');
+        this.prevFrameData = null;
         
         this.stream = null;
         this.isCapturing = false;
+        this.captureTimer = null;
+        this.captureIntervalMs = 2500; // auto capture every 2.5s
+        this.cooldownMs = 6000; // no repetir predicción si la identidad no cambia en 6s
+        this.lastIdentity = null;
+        this.lastSuccessTs = 0;
         
         this.initializeEventListeners();
     }
@@ -22,7 +31,7 @@ class FaceAuthApp {
     initializeEventListeners() {
         this.startCameraBtn.addEventListener('click', () => this.startCamera());
         this.stopCameraBtn.addEventListener('click', () => this.stopCamera());
-        this.captureBtn.addEventListener('click', () => this.captureAndPredict());
+        this.captureBtn.addEventListener('click', () => this.captureAndPredict(false));
     }
     
     async startCamera() {
@@ -44,6 +53,11 @@ class FaceAuthApp {
             this.captureBtn.disabled = false;
             
             this.showNotification('Cámara activada correctamente', 'success');
+
+            // Start auto-capture loop
+            if (!this.captureTimer) {
+                this.captureTimer = setInterval(() => this.captureAndPredict(true), this.captureIntervalMs);
+            }
             
         } catch (error) {
             console.error('Error al acceder a la cámara:', error);
@@ -59,6 +73,11 @@ class FaceAuthApp {
             this.stream = null;
         }
         
+        if (this.captureTimer) {
+            clearInterval(this.captureTimer);
+            this.captureTimer = null;
+        }
+        
         // Update UI
         this.updateCameraStatus(false);
         this.startCameraBtn.disabled = false;
@@ -66,6 +85,7 @@ class FaceAuthApp {
         this.captureBtn.disabled = true;
         
         this.showNotification('Cámara desactivada', 'info');
+        this.updateDetectedBox(null);
     }
     
     updateCameraStatus(isActive) {
@@ -74,7 +94,7 @@ class FaceAuthApp {
         
         if (isActive) {
             this.cameraStatus.classList.add('active');
-            statusIcon.textContent = '🟢';
+            statusIcon.textContent = '📹';
             statusText.textContent = 'Cámara activa';
         } else {
             this.cameraStatus.classList.remove('active');
@@ -83,12 +103,25 @@ class FaceAuthApp {
         }
     }
     
-    async captureAndPredict() {
-        if (this.isCapturing) return;
+    async captureAndPredict(auto = false) {
+        if (this.isCapturing || !this.stream) return;
+        const now = Date.now();
+
+        if (auto) {
+            // Si no hay cambios visuales y seguimos dentro del cooldown, saltar
+            const sceneChanged = this.hasSceneChange();
+            const recentlyRecognized =
+                this.lastIdentity && now - this.lastSuccessTs < this.cooldownMs;
+            if (recentlyRecognized && !sceneChanged) {
+                return;
+            }
+        }
         
         try {
             this.isCapturing = true;
-            this.captureBtn.disabled = true;
+            if (!auto) {
+                this.captureBtn.disabled = true;
+            }
             
             // Show loading state
             this.showLoading();
@@ -114,7 +147,9 @@ class FaceAuthApp {
             this.showError('Error al procesar la imagen', error.message);
         } finally {
             this.isCapturing = false;
-            this.captureBtn.disabled = false;
+            if (!auto) {
+                this.captureBtn.disabled = false;
+            }
         }
     }
     
@@ -137,17 +172,23 @@ class FaceAuthApp {
     displayResult(result) {
         // Hide all states
         this.hideAllStates();
+        this.updateDetectedBox(result.box);
         
         if (result.success) {
+            this.lastIdentity = result.identity;
+            this.lastSuccessTs = Date.now();
             // Show success state
             this.showSuccess(result);
         } else if (result.identity === null) {
+            this.lastIdentity = null;
             // No face detected
             this.showError('No se detectó ningún rostro', result.message);
         } else if (result.identity === 'DESCONOCIDO') {
+            this.lastIdentity = null;
             // Unknown person
             this.showUnknown(result);
         } else {
+            this.lastIdentity = null;
             // Other errors
             this.showError('Error en el reconocimiento', result.message);
         }
@@ -253,17 +294,54 @@ class FaceAuthApp {
         document.getElementById('errorState').style.display = 'none';
         document.getElementById('probabilitiesSection').style.display = 'none';
     }
+
+    hasSceneChange() {
+        // Escala el frame a 64x36 para un diff barato
+        if (!this.video.videoWidth) return true;
+        const w = 64, h = 36;
+        this.motionCanvas.width = w;
+        this.motionCanvas.height = h;
+        this.motionCtx.drawImage(this.video, 0, 0, w, h);
+        const frame = this.motionCtx.getImageData(0, 0, w, h).data;
+        if (!this.prevFrameData) {
+            this.prevFrameData = new Uint8ClampedArray(frame);
+            return true;
+        }
+        let diff = 0;
+        for (let i = 0; i < frame.length; i += 4) {
+            diff += Math.abs(frame[i] - this.prevFrameData[i]);
+            diff += Math.abs(frame[i + 1] - this.prevFrameData[i + 1]);
+            diff += Math.abs(frame[i + 2] - this.prevFrameData[i + 2]);
+        }
+        const avgDiff = diff / (w * h * 3);
+        this.prevFrameData.set(frame);
+        // Umbral: si el promedio de diferencia de pixel es > 8, consideramos cambio
+        return avgDiff > 8;
+    }
+
+    updateDetectedBox(box) {
+        if (!box || !this.video.videoWidth) {
+            this.detectedBox.style.display = 'none';
+            return;
+        }
+        const [x1, y1, x2, y2] = box;
+        const scaleX = this.video.clientWidth / this.video.videoWidth;
+        const scaleY = this.video.clientHeight / this.video.videoHeight;
+        const left = x1 * scaleX;
+        const top = y1 * scaleY;
+        const width = (x2 - x1) * scaleX;
+        const height = (y2 - y1) * scaleY;
+
+        this.detectedBox.style.display = 'block';
+        this.detectedBox.style.left = `${left}px`;
+        this.detectedBox.style.top = `${top}px`;
+        this.detectedBox.style.width = `${width}px`;
+        this.detectedBox.style.height = `${height}px`;
+    }
     
     showNotification(message, type = 'info') {
-        // Simple console notification (you can implement a toast later)
-        const emoji = {
-            'success': '✅',
-            'error': '❌',
-            'warning': '⚠️',
-            'info': 'ℹ️'
-        };
-        
-        console.log(`${emoji[type]} ${message}`);
+        // Simple console notification (placeholder)
+        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -271,4 +349,5 @@ class FaceAuthApp {
 document.addEventListener('DOMContentLoaded', () => {
     const app = new FaceAuthApp();
     console.log('✅ Face Authentication App initialized');
+    app.startCamera(); // auto start
 });
