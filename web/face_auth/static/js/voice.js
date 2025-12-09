@@ -51,18 +51,18 @@ startRecordingBtn.addEventListener('click', async function() {
         stopRecordingBtn.style.display = 'flex';
         stopRecordingBtn.disabled = false;
         recordingStatus.classList.add('recording');
-        recordingStatus.querySelector('.status-text').textContent = 'Grabando...';
+        recordingStatus.querySelector('.status-text').textContent = 'Grabando... (5s)';
         micIcon.classList.add('recording');
         
         // Start visualization
         visualizeAudio();
         
-        // Auto-stop after 3 seconds
+        // Auto-stop after 5 seconds
         setTimeout(() => {
             if (audioRecorder && audioRecorder.isRecording) {
                 stopRecordingBtn.click();
             }
-        }, 3000);
+        }, 5000);
         
     } catch (error) {
         console.error('Error al iniciar grabación:', error);

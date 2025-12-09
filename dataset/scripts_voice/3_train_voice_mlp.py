@@ -41,15 +41,15 @@ BEST_MODEL_PATH = MODELS_DIR / "voice_mlp_best.keras"
 CLASS_INDICES_PATH = MODELS_DIR / "voice_class_indices.json"
 HISTORY_PATH = MODELS_DIR / "voice_training_history.png"
 
-EPOCHS = 50
-BATCH_SIZE = 16
+EPOCHS = 200  # Aumentado para dataset pequeño
+BATCH_SIZE = 4  # Reducido para mejor aprendizaje con pocos datos
 TEST_SIZE = 0.2
 RANDOM_SEED = 42
 
 
 def build_mlp(input_dim, num_classes):
     """
-    Construye la arquitectura MLP
+    Construye la arquitectura MLP optimizada para datasets pequeños
     
     Args:
         input_dim: Dimensión de entrada (192 para ECAPA-TDNN)
@@ -61,17 +61,26 @@ def build_mlp(input_dim, num_classes):
     model = keras.Sequential([
         layers.Input(shape=(input_dim,)),
         
-        layers.Dense(256, activation='relu', name='dense1'),
-        layers.Dropout(0.3, name='dropout1'),
+        # Capa 1: Más neuronas para capturar características
+        layers.Dense(512, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense1'),
+        layers.BatchNormalization(name='bn1'),
+        layers.Dropout(0.5, name='dropout1'),  # Más dropout para evitar overfitting
         
-        layers.Dense(128, activation='relu', name='dense2'),
-        layers.Dropout(0.3, name='dropout2'),
+        # Capa 2: Reducción gradual
+        layers.Dense(256, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense2'),
+        layers.BatchNormalization(name='bn2'),
+        layers.Dropout(0.5, name='dropout2'),
+        
+        # Capa 3: Compresión final
+        layers.Dense(128, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense3'),
+        layers.BatchNormalization(name='bn3'),
+        layers.Dropout(0.3, name='dropout3'),
         
         layers.Dense(num_classes, activation='softmax', name='output')
     ], name='VoiceMLP')
     
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=keras.optimizers.Adam(learning_rate=0.0005),  # Learning rate más bajo
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
@@ -125,10 +134,46 @@ def main():
     print(f"   y shape: {y.shape}")
     print(f"   Clases: {num_classes}")
     
-    print("\n📊 Distribución de datos:")
+    print("\n📊 Distribución de datos original:")
     for label_idx, person_name in label_map.items():
         count = (y == label_idx).sum()
         print(f"   {label_idx}: {person_name:12s} → {count} muestras")
+    
+    # DATA AUGMENTATION para datasets pequeños
+    if len(X) < 100:
+        print("\n🔄 Aplicando Data Augmentation (dataset pequeño)...")
+        X_augmented = []
+        y_augmented = []
+        
+        for embedding, label in zip(X, y):
+            # Original
+            X_augmented.append(embedding)
+            y_augmented.append(label)
+            
+            # Augmentation 1: Añadir ruido gaussiano
+            noise1 = np.random.normal(0, 0.01, embedding.shape)
+            X_augmented.append(embedding + noise1)
+            y_augmented.append(label)
+            
+            # Augmentation 2: Escalar ligeramente
+            scale = np.random.uniform(0.95, 1.05)
+            X_augmented.append(embedding * scale)
+            y_augmented.append(label)
+            
+            # Augmentation 3: Combinar ruido + escala
+            noise2 = np.random.normal(0, 0.005, embedding.shape)
+            scale2 = np.random.uniform(0.98, 1.02)
+            X_augmented.append((embedding + noise2) * scale2)
+            y_augmented.append(label)
+        
+        X = np.array(X_augmented, dtype=np.float32)
+        y = np.array(y_augmented)
+        
+        print(f"   ✅ Dataset aumentado de {len(X)//4} a {len(X)} muestras (4x)")
+        print(f"\n📊 Distribución después de augmentation:")
+        for label_idx, person_name in label_map.items():
+            count = (y == label_idx).sum()
+            print(f"   {label_idx}: {person_name:12s} → {count} muestras")
     
     # Dividir en train/test
     train_pct = int((1-TEST_SIZE)*100)

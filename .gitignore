@@ -207,3 +207,45 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ===================================
+# PROJECT SPECIFIC - APE3
+# ===================================
+
+# Dataset - Generated files
+dataset/dataset_clean/
+dataset/dataset_voice/
+dataset/audio_mels/
+dataset/embeddings/
+dataset/face_embeddings/
+
+# Models - Generated during training (exclude trained models)
+dataset/models/*.keras
+dataset/models/*.h5
+dataset/models/*.pth
+dataset/models/*.pt
+dataset/models/training_history.png
+dataset/models/face_training_history.png
+
+# Keep class indices (needed for inference)
+!dataset/models/class_indices.json
+!dataset/models/voice_class_indices.json
+
+# Test outputs
+dataset/test_data/
+
+# Video files (large, can be stored elsewhere)
+dataset/videos/
+dataset/videos copy/
+
+# Temporary audio files
+*.wav.tmp
+*.opus.tmp
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test audios (optional - uncomment if you want to exclude)
+# dataset/test_audios/

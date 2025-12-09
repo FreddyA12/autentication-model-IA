@@ -1,19 +1,23 @@
 """
 =============================================================================
-PASO 4: PREDICCIÓN DE VOZ
+PASO 4: PREDICCIÓN DE VOZ - PROBAR MODELO
 =============================================================================
 
-Predice la identidad de una persona desde un archivo de audio.
+Prueba el modelo entrenado con audios del dataset y audios de test.
 
 Pipeline completo:
     audio.wav → ECAPA-TDNN → embedding(192) → MLP → identidad
 
+Prueba:
+    1. Audios del dataset (dentro de dataset_voice/)
+    2. Audios nuevos (dentro de test_audios/)
+
 Uso:
-    python dataset/scripts_voice/4_predict_voice.py <audio.wav>
+    python dataset/scripts_voice/4_predict_voice.py
     
-Ejemplo:
-    python dataset/scripts_voice/4_predict_voice.py test_audio.wav
-    python dataset/scripts_voice/4_predict_voice.py dataset/dataset_voice/freddy/freddy_001.wav
+El script probará automáticamente:
+    - Algunos audios del dataset (para verificar que reconoce bien)
+    - Todos los audios en test_audios/ (audios nuevos de prueba)
 """
 
 import sys
@@ -33,8 +37,11 @@ MODELS_DIR = Path("dataset/models")
 MODEL_PATH = MODELS_DIR / "voice_mlp_best.keras"
 CLASS_INDICES_PATH = MODELS_DIR / "voice_class_indices.json"
 
+DATASET_VOICE_DIR = Path("dataset/dataset_voice")
+TEST_AUDIOS_DIR = Path("dataset/test_audios")
+
 SAMPLE_RATE = 16000
-CONFIDENCE_THRESHOLD = 0.50
+CONFIDENCE_THRESHOLD = 0.80  # Ajustado a 80% para mejor detección de desconocidos
 
 
 class VoicePredictor:
@@ -184,27 +191,161 @@ def print_result(result, audio_path):
     print("="*70 + "\n")
 
 
+def test_dataset_samples(predictor):
+    """
+    Prueba con algunos audios del dataset (audios conocidos)
+    """
+    print("\n" + "="*70)
+    print("🎯 PRUEBA 1: AUDIOS DEL DATASET (audios conocidos)")
+    print("="*70)
+    print("Probando que el modelo reconoce correctamente los audios de entrenamiento\n")
+    
+    if not DATASET_VOICE_DIR.exists():
+        print(f"⚠️  No se encontró {DATASET_VOICE_DIR}")
+        return
+    
+    # Obtener todas las personas
+    persons = sorted([d for d in DATASET_VOICE_DIR.iterdir() if d.is_dir()])
+    
+    if not persons:
+        print("⚠️  No hay carpetas en dataset_voice/")
+        return
+    
+    results = []
+    
+    for person_dir in persons:
+        person_name = person_dir.name
+        audios = sorted(person_dir.glob("*.wav"))
+        
+        if not audios:
+            continue
+        
+        # Tomar el primer audio de cada persona
+        audio_path = audios[0]
+        
+        print(f"🎤 Probando: {person_name}/{audio_path.name}")
+        
+        try:
+            result = predictor.predict(audio_path)
+            predicted = result['identity']
+            confidence = result['confidence'] * 100
+            
+            # Verificar si la predicción es correcta
+            is_correct = (predicted.lower() == person_name.lower())
+            
+            if is_correct:
+                print(f"   ✅ Correcto: {predicted} ({confidence:.1f}%)\n")
+            else:
+                print(f"   ❌ Error: predijo {predicted} ({confidence:.1f}%), esperaba {person_name}\n")
+            
+            results.append({
+                'audio': f"{person_name}/{audio_path.name}",
+                'expected': person_name,
+                'predicted': predicted,
+                'confidence': confidence,
+                'correct': is_correct
+            })
+            
+        except Exception as e:
+            print(f"   ❌ Error al procesar: {e}\n")
+    
+    # Resumen
+    if results:
+        correct = sum(1 for r in results if r['correct'])
+        total = len(results)
+        accuracy = (correct / total) * 100
+        
+        print("\n" + "="*70)
+        print("📊 RESUMEN - AUDIOS DEL DATASET")
+        print("="*70)
+        print(f"Correctas: {correct}/{total}")
+        print(f"Accuracy: {accuracy:.1f}%")
+        print("="*70 + "\n")
+
+
+def test_new_audios(predictor):
+    """
+    Prueba con audios nuevos (fuera del dataset)
+    """
+    print("\n" + "="*70)
+    print("🆕 PRUEBA 2: AUDIOS DE TEST (audios nuevos)")
+    print("="*70)
+    print(f"Probando audios en {TEST_AUDIOS_DIR}/\n")
+    
+    # Crear directorio si no existe
+    if not TEST_AUDIOS_DIR.exists():
+        TEST_AUDIOS_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"✅ Creada carpeta: {TEST_AUDIOS_DIR}")
+        print(f"   Coloca audios nuevos aquí para probar el modelo\n")
+        print("💡 Estructura recomendada:")
+        print("   test_audios/")
+        print("      alison_test1.wav")
+        print("      freddy_test1.opus")
+        print("      desconocido1.mp3")
+        print("\n📝 Formatos soportados: .wav, .opus, .mp3, .ogg, .m4a")
+        print("⏱️  Duración recomendada: 5-10 segundos por audio")
+        print("="*70 + "\n")
+        return
+    
+    # Buscar audios de test (múltiples formatos)
+    test_audios = []
+    for ext in ['*.wav', '*.opus', '*.mp3', '*.ogg', '*.m4a']:
+        test_audios.extend(TEST_AUDIOS_DIR.glob(ext))
+    test_audios = sorted(test_audios)
+    
+    if not test_audios:
+        print("⚠️  No hay archivos de audio en test_audios/")
+        print(f"   Coloca audios en {TEST_AUDIOS_DIR}/ para probar")
+        print("   Formatos soportados: .wav, .opus, .mp3, .ogg, .m4a\n")
+        return
+    
+    print(f"Encontrados {len(test_audios)} audios de test\n")
+    
+    for audio_path in test_audios:
+        print(f"🎤 Probando: {audio_path.name}")
+        
+        try:
+            result = predictor.predict(audio_path)
+            predicted = result['identity']
+            confidence = result['confidence'] * 100
+            
+            # Mostrar resultado
+            if predicted != 'unknown':
+                print(f"   ✅ Identificado como: {predicted.upper()} ({confidence:.1f}%)")
+            else:
+                print(f"   ⚠️  Voz DESCONOCIDA (confianza máxima: {confidence:.1f}%)")
+            
+            # Mostrar top 3 probabilidades
+            probs_sorted = sorted(
+                result['probabilities'].items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:3]
+            
+            print("   Top 3 probabilidades:")
+            for person, prob in probs_sorted:
+                print(f"      {person:12s} {prob*100:6.2f}%")
+            
+            print()
+            
+        except Exception as e:
+            print(f"   ❌ Error al procesar: {e}\n")
+    
+    print("="*70 + "\n")
+
+
 def main():
     print("="*70)
-    print("PREDICCIÓN DE VOZ")
+    print("PASO 4: PROBAR MODELO DE VOZ")
     print("="*70 + "\n")
     
-    # Verificar argumentos
-    if len(sys.argv) < 2:
-        print("❌ Error: Debes proporcionar un archivo de audio\n")
-        print("Uso:")
-        print("   python dataset/scripts_voice/4_predict_voice.py <audio.wav>\n")
-        print("Ejemplos:")
-        print("   python dataset/scripts_voice/4_predict_voice.py test.wav")
-        print("   python dataset/scripts_voice/4_predict_voice.py dataset/dataset_voice/freddy/freddy_001.wav")
-        return
+    print("""
+    Este script prueba tu modelo entrenado con:
     
-    audio_path = Path(sys.argv[1])
+    1️⃣  Audios del dataset (para verificar accuracy)
+    2️⃣  Audios nuevos en test_audios/ (audios de prueba)
     
-    # Verificar que existe el audio
-    if not audio_path.exists():
-        print(f"❌ No se encontró el archivo: {audio_path}")
-        return
+    """)
     
     # Verificar que existe el modelo
     if not MODEL_PATH.exists():
@@ -215,16 +356,19 @@ def main():
     # Crear predictor
     predictor = VoicePredictor(MODEL_PATH, CLASS_INDICES_PATH)
     
-    # Predecir
-    print(f"🔍 Analizando audio: {audio_path.name}...")
-    result = predictor.predict(audio_path)
+    # Prueba 1: Audios del dataset
+    test_dataset_samples(predictor)
     
-    # Mostrar resultado
-    print_result(result, audio_path.name)
+    # Prueba 2: Audios de test
+    test_new_audios(predictor)
     
-    # Mostrar JSON
-    print("📄 Resultado en formato JSON:")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    print("\n✅ Pruebas completadas\n")
+    print("💡 Tips:")
+    print("   - Coloca más audios en test_audios/ para seguir probando")
+    print("   - Formatos: .wav, .opus, .mp3, .ogg, .m4a")
+    print("   - Duración: al menos 5 segundos (idealmente 5-10s)")
+    print("   - Calidad: habla clara, sin mucho ruido de fondo")
+    print("="*70 + "\n")
 
 
 if __name__ == "__main__":

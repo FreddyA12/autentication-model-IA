@@ -40,7 +40,7 @@ class VoiceRecognitionService:
             self.models_dir = Path(settings.PROJECT_ROOT) / "dataset" / "models"
             self.model_path = self.models_dir / "voice_mlp_best.keras"
             self.class_indices_path = self.models_dir / "voice_class_indices.json"
-            self.confidence_threshold = getattr(settings, 'VOICE_CONFIDENCE_THRESHOLD', 0.50)
+            self.confidence_threshold = getattr(settings, 'VOICE_CONFIDENCE_THRESHOLD', 0.80)  # Subido a 0.80 para mejor detección de desconocidos
             
             # Verificar que existan los modelos
             if not self.model_path.exists():
@@ -92,7 +92,7 @@ class VoiceRecognitionService:
             self._initialized = True
     
     def _build_mlp(self):
-        """Reconstruir el modelo MLP"""
+        """Reconstruir el modelo MLP con arquitectura actualizada"""
         from tensorflow import keras
         from tensorflow.keras import layers
         
@@ -100,18 +100,29 @@ class VoiceRecognitionService:
         
         model = keras.Sequential([
             layers.Input(shape=(192,)),
-            layers.Dense(256, activation='relu'),
-            layers.Dropout(0.3),
-            layers.Dense(128, activation='relu'),
-            layers.Dropout(0.3),
-            layers.Dense(num_classes, activation='softmax')
-        ], name='voice_mlp')
+            
+            # Arquitectura actualizada (debe coincidir con el entrenamiento)
+            layers.Dense(512, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense1'),
+            layers.BatchNormalization(name='bn1'),
+            layers.Dropout(0.5, name='dropout1'),
+            
+            layers.Dense(256, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense2'),
+            layers.BatchNormalization(name='bn2'),
+            layers.Dropout(0.5, name='dropout2'),
+            
+            layers.Dense(128, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), name='dense3'),
+            layers.BatchNormalization(name='bn3'),
+            layers.Dropout(0.3, name='dropout3'),
+            
+            layers.Dense(num_classes, activation='softmax', name='output')
+        ], name='VoiceMLP')
         
         # Cargar pesos desde el archivo
         try:
             model.load_weights(str(self.model_path))
-        except:
-            print("   ⚠️  No se pudieron cargar los pesos")
+            print("   ✅ Pesos cargados correctamente")
+        except Exception as e:
+            print(f"   ⚠️  No se pudieron cargar los pesos: {e}")
         
         return model
     

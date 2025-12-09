@@ -113,4 +113,4 @@ EMBEDDINGS_DIR = str(PROJECT_ROOT / 'dataset' / 'embeddings')
 
 # Recognition thresholds
 CONFIDENCE_THRESHOLD = 0.95  # 95%
-VOICE_CONFIDENCE_THRESHOLD = 0.50  # 50%
+VOICE_CONFIDENCE_THRESHOLD = 0.80  # 80% - Subido para mejor detección de desconocidos

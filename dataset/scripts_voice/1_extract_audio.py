@@ -33,8 +33,8 @@ from tqdm import tqdm
 VIDEOS_DIR = Path("dataset/videos")
 OUTPUT_DIR = Path("dataset/dataset_voice")
 TARGET_SAMPLE_RATE = 16000  # 16 kHz requerido por ECAPA-TDNN
-MIN_DURATION = 2.0          # Mínimo 2 segundos
-MAX_DURATION = 5.0          # Máximo 5 segundos
+MIN_DURATION = 3.0          # Mínimo 3 segundos (aumentado)
+MAX_DURATION = 10.0         # Máximo 10 segundos (aumentado)
 
 
 def extract_audio_segments(video_path, person_name):
@@ -68,13 +68,14 @@ def extract_audio_segments(video_path, person_name):
             clip.close()
             return 0
         
-        # Determinar cuántos segmentos de 3 segundos podemos extraer
-        segment_duration = 3.0
-        hop_duration = 1.5  # Solapamiento de 50% para más muestras
+        # Configuración optimizada para máxima extracción
+        segment_duration = 5.0  # Aumentado a 5s (mejor para ECAPA-TDNN)
+        hop_duration = 2.0      # Solapamiento de 60% (5s con salto de 2s)
         
         # Calcular número de segmentos con solapamiento
         num_segments = int((duration - segment_duration) / hop_duration) + 1
-        print(f"   Extrayendo {num_segments} segmentos...")
+        num_segments = max(1, num_segments)  # Al menos 1 segmento
+        print(f"   Extrayendo {num_segments} segmentos de {segment_duration}s...")
         
         # Extraer múltiples segmentos con solapamiento
         segments_saved = 0

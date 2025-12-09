@@ -11,6 +11,7 @@ class AudioRecorder {
         this.audioBuffers = [];
         this.isRecording = false;
         this.sampleRate = 16000;
+        this.bufferSize = 2048; // Reducido para mejor captura
     }
     
     async start() {
@@ -32,8 +33,7 @@ class AudioRecorder {
             const source = this.audioContext.createMediaStreamSource(this.mediaStream);
             
             // Crear procesador con ScriptProcessorNode (deprecated pero funcional)
-            const bufferSize = 4096;
-            this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+            this.processor = this.audioContext.createScriptProcessor(this.bufferSize, 1, 1);
             
             this.audioBuffers = [];
             this.isRecording = true;
