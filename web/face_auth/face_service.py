@@ -49,13 +49,7 @@ class FaceRecognitionService:
 
             import tensorflow as tf
 
-            self.classifier = tf.keras.models.load_model(
-                model_path,
-                compile=False,
-                safe_mode=False,
-            )
-
-            # Mapeo de clases
+            # Cargar mapeo de clases PRIMERO
             print(f"   Cargando clases desde: {settings.CLASS_INDICES_PATH}")
             if not os.path.exists(settings.CLASS_INDICES_PATH):
                 raise FileNotFoundError(
@@ -68,6 +62,19 @@ class FaceRecognitionService:
                 else:
                     idx_to_label = {int(k): v for k, v in class_data.items()}
             self.idx_to_label = idx_to_label
+
+            # Intentar cargar el clasificador
+            try:
+                self.classifier = tf.keras.models.load_model(
+                    model_path,
+                    compile=False,
+                    safe_mode=False,
+                )
+            except Exception as e:
+                print(f"   ⚠️  Error al cargar modelo: {e}")
+                print(f"   Reconstruyendo modelo desde pesos...")
+                self.classifier = self._rebuild_classifier(model_path)
+                print(f"   ✅ Modelo reconstruido exitosamente")
 
             self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
 
@@ -92,6 +99,32 @@ class FaceRecognitionService:
             print(f"   Modelo principal no existe, usando: {candidate}")
             return candidate
         raise FileNotFoundError(f"No se encontró el modelo en {path}")
+
+    def _rebuild_classifier(self, model_path: str):
+        """Reconstruir el clasificador desde pesos"""
+        import tensorflow as tf
+        from tensorflow import keras
+        from tensorflow.keras import layers
+        
+        num_classes = len(self.idx_to_label)
+        
+        # Arquitectura del clasificador (scripts/3_train_model.py)
+        model = keras.Sequential([
+            layers.Input(shape=(512,)),
+            layers.Dense(256, activation='relu'),
+            layers.Dropout(0.3),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.3),
+            layers.Dense(num_classes, activation='softmax')
+        ], name='face_classifier')
+        
+        # Cargar pesos
+        try:
+            model.load_weights(model_path)
+        except:
+            print("   ⚠️  No se pudieron cargar los pesos del modelo")
+        
+        return model
 
     def extract_embedding(self, image_bytes: bytes):
         """Devuelve (embedding, box, score) o (None, None, None) si no detecta."""

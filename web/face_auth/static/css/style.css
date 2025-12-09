@@ -71,18 +71,67 @@ body {
     margin-top: 10px;
 }
 
-/* Main Content */
-.main-content {
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 14px 30px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    border-color: var(--primary-color);
+    background: rgba(34, 211, 238, 0.05);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(59, 130, 246, 0.2));
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    box-shadow: 0 8px 20px rgba(34, 211, 238, 0.25);
+}
+
+.tab-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
     gap: 26px;
-    margin-bottom: 30px;
 }
 
 @media (max-width: 1024px) {
-    .main-content {
+    .tab-content.active {
         grid-template-columns: 1fr;
     }
+}
+
+/* Main Content */
+.main-content {
+    margin-bottom: 30px;
 }
 
 /* Camera Section */
@@ -189,6 +238,125 @@ body {
     background: rgba(16, 185, 129, 0.12);
     border: 1px solid rgba(16, 185, 129, 0.5);
     box-shadow: 0 10px 30px -15px rgba(16, 185, 129, 0.6);
+}
+
+/* Voice Section */
+.voice-section {
+    background: linear-gradient(145deg, var(--bg-secondary), #0f1629);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.voice-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(180deg, #0f1629, #0b1224);
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 18px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.voice-visualizer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+#waveform {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+.mic-icon {
+    color: var(--primary-color);
+    opacity: 0.3;
+    transition: all 0.3s ease;
+}
+
+.mic-icon.recording {
+    opacity: 1;
+    animation: pulse 1.5s ease infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+}
+
+.recording-status {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: rgba(17, 24, 39, 0.85);
+    padding: 8px 14px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s ease;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.recording-status.recording {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    box-shadow: 0 10px 30px -15px rgba(239, 68, 68, 0.6);
+    animation: blink 1s ease infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.audio-player {
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+
+.audio-player audio {
+    width: 100%;
+}
+
+/* Voice Controls */
+.voice-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
 }
 
 /* Camera Controls */
