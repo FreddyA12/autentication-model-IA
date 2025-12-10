@@ -35,7 +35,7 @@ class VoiceRecognitionService:
     def lazy_init(self):
         """Inicialización perezosa cuando Django settings esté disponible"""
         if not self._initialized:
-            print("🎤 Inicializando Voice Recognition Service (ECAPA-TDNN)...")
+            print("[VOICE] Inicializando Voice Recognition Service (ECAPA-TDNN)...")
             
             # Configuración
             self.models_dir = Path(settings.PROJECT_ROOT) / "dataset" / "voice" / "models"
@@ -45,16 +45,16 @@ class VoiceRecognitionService:
             
             # Verificar que existan los modelos
             if not self.model_path.exists():
-                print(f"⚠️ Modelo de voz no encontrado en {self.model_path}")
+                print(f"[WARN] Modelo de voz no encontrado en {self.model_path}")
                 self.mlp = None
             else:
                 # Cargar MLP
                 print("   Cargando MLP...")
                 try:
                     self.mlp = tf.keras.models.load_model(str(self.model_path))
-                    print(f"   ✅ Modelo MLP cargado exitosamente")
+                    print(f"   [OK] Modelo MLP cargado exitosamente")
                 except Exception as e:
-                    print(f"   ⚠️  Error al cargar modelo MLP: {e}")
+                    print(f"   [WARN] Error al cargar modelo MLP: {e}")
                     self.mlp = None
 
             # Cargar ECAPA-TDNN
@@ -71,9 +71,9 @@ class VoiceRecognitionService:
                     run_opts={"device": device},
                     local_strategy=LocalStrategy.COPY
                 )
-                print(f"   ✅ ECAPA-TDNN cargado en {device}")
+                print(f"   [OK] ECAPA-TDNN cargado en {device}")
             except Exception as e:
-                print(f"❌ Error cargando ECAPA-TDNN: {e}")
+                print(f"[ERROR] Error cargando ECAPA-TDNN: {e}")
                 raise
             
             # Cargar mapeo de clases
@@ -83,10 +83,10 @@ class VoiceRecognitionService:
                     self.label_map = json.load(f)
                     self.label_map = {int(k): v for k, v in self.label_map.items()}
             else:
-                print("⚠️ No se encontró el mapeo de clases de voz")
+                print("[WARN] No se encontró el mapeo de clases de voz")
                 self.label_map = {}
 
-            print(f"   ✅ Servicio de voz listo ({len(self.label_map)} clases)")
+            print(f"   [OK] Servicio de voz listo ({len(self.label_map)} clases)")
             print(f"   Umbral de confianza: {self.confidence_threshold}")
             
             self._initialized = True
@@ -174,7 +174,7 @@ class VoiceRecognitionService:
             return result
             
         except Exception as e:
-            print(f"❌ Error en predicción de voz: {e}")
+            print(f"[ERROR] Error en predicción de voz: {e}")
             import traceback
             traceback.print_exc()
             return {

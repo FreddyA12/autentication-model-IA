@@ -6,7 +6,7 @@ import pickle
 from tensorflow import keras
 from tensorflow.keras import layers, models
 
-print("🔄 Cargando embeddings...")
+print("[INIT] Cargando embeddings...")
 with open('../dataset/embeddings/embeddings_dataset.pkl', 'rb') as f:
     data = pickle.load(f)
 
@@ -18,7 +18,7 @@ print(f"   X shape: {X.shape}")
 print(f"   Clases: {idx_to_label}")
 
 # Recrear el modelo con arquitectura compatible
-print("\n🏗️  Creando modelo compatible...")
+print("\n  Creando modelo compatible...")
 model = models.Sequential([
     layers.Input(shape=(512,)),  # Usar Input en lugar de batch_shape
     layers.Dense(256, activation='relu'),
@@ -28,7 +28,7 @@ model = models.Sequential([
     layers.Dense(len(idx_to_label), activation='softmax')
 ])
 
-print("\n📋 Arquitectura:")
+print("\n Arquitectura:")
 model.summary()
 
 # Cargar pesos del modelo antiguo
@@ -38,10 +38,10 @@ try:
         '../dataset/models/face_classifier.keras',
         compile=False
     )
-    print("   ❌ No se pudo cargar el modelo antiguo")
+    print("    No se pudo cargar el modelo antiguo")
 except Exception as e:
-    print(f"   ❌ Error: {e}")
-    print("\n   🔄 Reentrenando modelo desde cero...")
+    print(f"    Error: {e}")
+    print("\n    Reentrenando modelo desde cero...")
     
     from sklearn.model_selection import train_test_split
     
@@ -58,7 +58,7 @@ except Exception as e:
     )
     
     # Entrenar
-    print("\n🚀 Entrenando...")
+    print("\n[TRAIN] Entrenando...")
     history = model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val),
@@ -68,15 +68,15 @@ except Exception as e:
     )
     
     # Evaluar
-    print("\n📊 Evaluando...")
+    print("\n[EVAL] Evaluando...")
     loss, acc = model.evaluate(X_val, y_val, verbose=0)
     print(f"   Accuracy: {acc*100:.2f}%")
 
 # Guardar modelo compatible
-print("\n💾 Guardando modelo compatible...")
+print("\n[SAVE] Guardando modelo compatible...")
 model.save('../dataset/models/face_classifier_compatible.keras')
-print("   ✅ Guardado en: dataset/models/face_classifier_compatible.keras")
+print("   [OK] Guardado en: dataset/models/face_classifier_compatible.keras")
 
-print("\n✅ ¡Modelo convertido exitosamente!")
-print("\n📝 Actualiza settings.py para usar:")
+print("\n[OK] Modelo convertido exitosamente!")
+print("\n[INFO] Actualiza settings.py para usar:")
 print("   FACE_MODEL_PATH = 'face_classifier_compatible.keras'")

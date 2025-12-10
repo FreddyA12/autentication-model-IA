@@ -37,7 +37,7 @@ startRecordingBtn.addEventListener('click', async function() {
         audioRecorder = new AudioRecorder();
         await audioRecorder.start();
         
-        console.log('🎙️ Grabación iniciada');
+        console.log('[VOICE] Grabación iniciada');
         
         // Setup audio visualization
         visualizerContext = audioRecorder.getAudioContext();
@@ -80,7 +80,7 @@ stopRecordingBtn.addEventListener('click', function() {
         // Obtener el WAV
         recordedBlob = audioRecorder.getWAVBlob();
         
-        console.log('🎵 Audio grabado como WAV:', {
+        console.log('[VOICE] Audio grabado como WAV:', {
             size: recordedBlob.size,
             type: recordedBlob.type
         });
@@ -167,7 +167,7 @@ authenticateVoiceBtn.addEventListener('click', async function() {
         const formData = new FormData();
         formData.append('audio', recordedBlob, 'recording.wav');
         
-        console.log('🎤 Enviando audio para autenticación...');
+        console.log('[VOICE] Enviando audio para autenticación...');
         
         // Send to API
         const response = await fetch('/api/predict_voice/', {
@@ -176,7 +176,7 @@ authenticateVoiceBtn.addEventListener('click', async function() {
         });
         
         const result = await response.json();
-        console.log('✅ Respuesta:', result);
+        console.log('[OK] Respuesta:', result);
         
         if (result.success) {
             if (result.identity === 'unknown') {
@@ -189,7 +189,7 @@ authenticateVoiceBtn.addEventListener('click', async function() {
         }
         
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('[ERROR] Error:', error);
         showVoiceError('Error de conexión: ' + error.message);
     }
 });

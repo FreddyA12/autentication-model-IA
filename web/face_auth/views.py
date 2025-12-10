@@ -66,21 +66,21 @@ def predict_face(request):
         image_file = request.FILES['image']
         image_bytes = image_file.read()
         
-        print(f"📸 Imagen recibida: {len(image_bytes)} bytes")
+        print(f"[IMG] Imagen recibida: {len(image_bytes)} bytes")
         
         # Obtener servicio de reconocimiento facial
-        print("🔄 Cargando servicio de reconocimiento...")
+        print("[FACE] Cargando servicio de reconocimiento...")
         face_service = get_face_service()
         
         # Realizar predicción
-        print("🧠 Realizando predicción...")
+        print("[FACE] Realizando predicción...")
         result = face_service.predict(image_bytes)
         
-        print(f"✅ Resultado: {result}")
+        print(f"[OK] Resultado: {result}")
         return JsonResponse(result)
     
     except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
+        print(f" ERROR: {str(e)}")
         print(traceback.format_exc())
         return JsonResponse({
             'success': False,
@@ -115,7 +115,7 @@ def predict_voice(request):
         # Obtener el audio (ahora es WAV directo del navegador)
         audio_file = request.FILES['audio']
         
-        print(f"🎤 Audio recibido: {audio_file.name}, {audio_file.size} bytes")
+        print(f"[AUDIO] Audio recibido: {audio_file.name}, {audio_file.size} bytes")
         
         # Guardar temporalmente
         import tempfile
@@ -126,17 +126,17 @@ def predict_voice(request):
                 tmp.write(chunk)
             tmp_path = tmp.name
         
-        print(f"✅ Audio guardado en: {tmp_path}")
+        print(f"[OK] Audio guardado en: {tmp_path}")
         
         try:
             # Realizar predicción
-            print("🧠 Realizando predicción de voz...")
+            print("[VOICE] Realizando predicción de voz...")
             result = voice_service.predict(tmp_path)
             
             # Agregar success flag
             result['success'] = result.get('identity') != 'error'
             
-            print(f"✅ Resultado: {result}")
+            print(f"[OK] Resultado: {result}")
             return JsonResponse(result)
         
         finally:
@@ -147,7 +147,7 @@ def predict_voice(request):
                 pass
     
     except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
+        print(f"[ERROR] {str(e)}")
         print(traceback.format_exc())
         return JsonResponse({
             'success': False,
@@ -177,7 +177,7 @@ def authenticate_dual(request):
         image_file = request.FILES['image']
         audio_file = request.FILES['audio']
         
-        print(f"🔄 Iniciando autenticación dual...")
+        print(f"[DUAL] Iniciando autenticación dual...")
         
         # 2. Procesar Cara
         print("   Procesando cara...")
@@ -234,7 +234,7 @@ def authenticate_dual(request):
         else:
             message = "No se reconoció ni cara ni voz"
             
-        print(f"✅ Resultado Dual: {final_success} ({message})")
+        print(f"[OK] Resultado Dual: {final_success} ({message})")
             
         return JsonResponse({
             'success': final_success,
@@ -244,7 +244,7 @@ def authenticate_dual(request):
         })
 
     except Exception as e:
-        print(f"❌ ERROR DUAL: {str(e)}")
+        print(f"[ERROR] ERROR DUAL: {str(e)}")
         print(traceback.format_exc())
         return JsonResponse({
             'success': False,

@@ -88,7 +88,7 @@ def main():
         audios = list(person_dir.glob("*.wav"))
         if audios:
             identity, conf, _ = predictor.predict(audios[0])
-            check = "" if identity == person_dir.name else "❌"
+            check = "" if identity == person_dir.name else "x"
             print(f"{check} {person_dir.name}: Predicho {identity} ({conf:.1%})")
 
     # Probar nuevos audios

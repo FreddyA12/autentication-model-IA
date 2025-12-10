@@ -55,9 +55,9 @@ class FaceRecognitionService:
             # Cargar el clasificador
             try:
                 self.classifier = tf.keras.models.load_model(model_path)
-                print(f"   ✅ Modelo cargado exitosamente")
+                print(f"   [OK] Modelo cargado exitosamente")
             except Exception as e:
-                print(f"   ⚠️  Error al cargar modelo: {e}")
+                print(f"   [WARN] Error al cargar modelo: {e}")
                 raise
 
             self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
