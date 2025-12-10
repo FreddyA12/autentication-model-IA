@@ -26,13 +26,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Update footer info
-            if (targetTab === 'face') {
-                faceInfo.style.display = 'block';
-                voiceInfo.style.display = 'none';
-            } else {
-                faceInfo.style.display = 'none';
-                voiceInfo.style.display = 'block';
-            }
+            const faceInfo = document.getElementById("faceInfo");
+            const voiceInfo = document.getElementById("voiceInfo");
+            const dualInfo = document.getElementById("dualInfo");
+
+            if (faceInfo)
+              faceInfo.style.display = targetTab === "face" ? "block" : "none";
+            if (voiceInfo)
+              voiceInfo.style.display =
+                targetTab === "voice" ? "block" : "none";
+            if (dualInfo)
+              dualInfo.style.display = targetTab === "dual" ? "block" : "none";
         });
     });
 });

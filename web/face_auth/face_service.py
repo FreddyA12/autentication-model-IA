@@ -1,55 +1,44 @@
 """
 Face Recognition Service
 
-Carga MTCNN + FaceNet para extraer embeddings y el clasificador entrenado
-con los scripts 1-3. Devuelve identidad o "DESCONOCIDO" según el umbral.
+Carga MTCNN + FaceNet (Keras) para extraer embeddings y el clasificador entrenado.
+Devuelve identidad o "DESCONOCIDO" según el umbral.
 """
 
 import os
 import json
-from io import BytesIO
-from typing import Optional, Dict
-
 import numpy as np
-import torch
+import cv2
+from typing import Optional, Dict
+from io import BytesIO
 from PIL import Image
+
+import tensorflow as tf
+from mtcnn import MTCNN
+from keras_facenet import FaceNet
 from django.conf import settings
-from facenet_pytorch import MTCNN, InceptionResnetV1
 
 
 class FaceRecognitionService:
-    """Servicio de reconocimiento facial usando FaceNet + clasificador propio."""
+    """Servicio de reconocimiento facial usando Keras FaceNet + clasificador propio."""
 
     def __init__(self) -> None:
         try:
-            print("[FaceAuth] Iniciando FaceRecognitionService...")
+            print("[FaceAuth] Iniciando FaceRecognitionService (TensorFlow)...")
 
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            print(f"   Dispositivo: {self.device}")
-
-            # Detector/alineador
+            # Detector
             print("   Cargando MTCNN...")
-            self.mtcnn = MTCNN(
-                image_size=160,
-                margin=20,
-                min_face_size=40,
-                thresholds=[0.6, 0.7, 0.7],
-                post_process=True,
-                device=self.device,
-                keep_all=False,
-            )
+            self.detector = MTCNN()
 
             # Extractor de embeddings
             print("   Cargando FaceNet...")
-            self.facenet = InceptionResnetV1(pretrained="vggface2").eval().to(self.device)
+            self.embedder = FaceNet()
 
-            # Clasificador entrenado (scripts 2 y 3)
+            # Clasificador entrenado
             print(f"   Cargando clasificador desde: {settings.FACE_MODEL_PATH}")
             model_path = self._resolve_model_path(settings.FACE_MODEL_PATH)
 
-            import tensorflow as tf
-
-            # Cargar mapeo de clases PRIMERO
+            # Cargar mapeo de clases
             print(f"   Cargando clases desde: {settings.CLASS_INDICES_PATH}")
             if not os.path.exists(settings.CLASS_INDICES_PATH):
                 raise FileNotFoundError(
@@ -63,18 +52,13 @@ class FaceRecognitionService:
                     idx_to_label = {int(k): v for k, v in class_data.items()}
             self.idx_to_label = idx_to_label
 
-            # Intentar cargar el clasificador
+            # Cargar el clasificador
             try:
-                self.classifier = tf.keras.models.load_model(
-                    model_path,
-                    compile=False,
-                    safe_mode=False,
-                )
+                self.classifier = tf.keras.models.load_model(model_path)
+                print(f"   ✅ Modelo cargado exitosamente")
             except Exception as e:
                 print(f"   ⚠️  Error al cargar modelo: {e}")
-                print(f"   Reconstruyendo modelo desde pesos...")
-                self.classifier = self._rebuild_classifier(model_path)
-                print(f"   ✅ Modelo reconstruido exitosamente")
+                raise
 
             self.confidence_threshold = settings.CONFIDENCE_THRESHOLD
 
@@ -85,13 +69,11 @@ class FaceRecognitionService:
         except Exception as e:
             print(f"[FaceAuth] Error al inicializar FaceRecognitionService: {e}")
             import traceback
-
             traceback.print_exc()
             raise
 
     @staticmethod
     def _resolve_model_path(path: str) -> str:
-        """Devuelve un path existente; cae al *_best.keras si el principal no existe."""
         if os.path.exists(path):
             return path
         candidate = path.replace(".keras", "_best.keras")
@@ -100,51 +82,43 @@ class FaceRecognitionService:
             return candidate
         raise FileNotFoundError(f"No se encontró el modelo en {path}")
 
-    def _rebuild_classifier(self, model_path: str):
-        """Reconstruir el clasificador desde pesos"""
-        import tensorflow as tf
-        from tensorflow import keras
-        from tensorflow.keras import layers
-        
-        num_classes = len(self.idx_to_label)
-        
-        # Arquitectura del clasificador (scripts/3_train_model.py)
-        model = keras.Sequential([
-            layers.Input(shape=(512,)),
-            layers.Dense(256, activation='relu'),
-            layers.Dropout(0.3),
-            layers.Dense(128, activation='relu'),
-            layers.Dropout(0.3),
-            layers.Dense(num_classes, activation='softmax')
-        ], name='face_classifier')
-        
-        # Cargar pesos
-        try:
-            model.load_weights(model_path)
-        except:
-            print("   ⚠️  No se pudieron cargar los pesos del modelo")
-        
-        return model
-
     def extract_embedding(self, image_bytes: bytes):
         """Devuelve (embedding, box, score) o (None, None, None) si no detecta."""
         try:
-            img = Image.open(BytesIO(image_bytes)).convert("RGB")
-            boxes, probs = self.mtcnn.detect(img)
-            if boxes is None or len(boxes) == 0:
+            # Convertir bytes a imagen numpy (BGR para cv2, pero MTCNN usa RGB)
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                return None, None, None
+            
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            
+            # Detectar caras
+            results = self.detector.detect_faces(img_rgb)
+            if not results:
                 return None, None, None
 
-            box = boxes[0].tolist()
-            box_score = float(probs[0])
+            # Tomar la cara con mayor confianza
+            best_face = max(results, key=lambda x: x['confidence'])
+            box = best_face['box']
+            confidence = best_face['confidence']
+            
+            x, y, w, h = box
+            # Asegurar coordenadas válidas
+            x, y = max(0, x), max(0, y)
+            
+            # Extraer rostro
+            face = img_rgb[y:y+h, x:x+w]
+            
+            # Redimensionar a 160x160 (requerido por FaceNet)
+            face_resized = cv2.resize(face, (160, 160))
+            
+            # Obtener embedding
+            samples = np.expand_dims(face_resized, axis=0)
+            embedding = self.embedder.embeddings(samples)[0]
+            
+            return embedding, box, confidence
 
-            face_tensor = self.mtcnn(img)
-            if face_tensor is None:
-                return None, None, None
-
-            with torch.no_grad():
-                face_batch = face_tensor.unsqueeze(0).to(self.device)
-                embedding = self.facenet(face_batch)
-            return embedding.cpu().numpy().flatten(), box, box_score
         except Exception as e:
             print(f"[FaceAuth] Error al extraer embedding: {e}")
             return None, None, None
@@ -162,6 +136,7 @@ class FaceRecognitionService:
                 "box": None,
             }
 
+        # Predicción
         embedding_batch = np.expand_dims(embedding, axis=0)
         predictions = self.classifier.predict(embedding_batch, verbose=0)[0]
 

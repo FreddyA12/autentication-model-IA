@@ -133,3 +133,109 @@ def predict_voice(request):
             'error': str(e),
             'message': f'Error al procesar el audio: {str(e)}'
         }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def authenticate_dual(request):
+    """
+    API endpoint para autenticación dual (cara + voz)
+    
+    POST /api/authenticate_dual/
+    Body: multipart/form-data con campos 'image' y 'audio'
+    """
+    try:
+        # 1. Validar input
+        if 'image' not in request.FILES or 'audio' not in request.FILES:
+             return JsonResponse({
+                'success': False,
+                'error': 'Faltan archivos',
+                'message': 'Se requiere imagen y audio'
+            }, status=400)
+            
+        image_file = request.FILES['image']
+        audio_file = request.FILES['audio']
+        
+        print(f"🔄 Iniciando autenticación dual...")
+        
+        # 2. Procesar Cara
+        print("   Procesando cara...")
+        face_service = get_face_service()
+        image_bytes = image_file.read()
+        face_result = face_service.predict(image_bytes)
+        
+        # 3. Procesar Voz
+        print("   Procesando voz...")
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
+            for chunk in audio_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+            
+        try:
+            voice_result = voice_service.predict(tmp_path)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+                
+        # 4. Lógica de Autenticación Dual (con fallback a Face-only)
+        face_identity = face_result.get('identity')
+        voice_identity = voice_result.get('identity')
+        
+        # Normalizar identidades para comparación
+        face_id_norm = str(face_identity).lower() if face_identity else ""
+        voice_id_norm = str(voice_identity).lower() if voice_identity else ""
+        
+        face_success = face_result.get('success', False) and face_identity != 'DESCONOCIDO' and face_identity is not None
+        voice_success = voice_identity != 'unknown' and voice_identity != 'error'
+        
+        final_success = False
+        message = ""
+        
+        # NUEVA LÓGICA: Priorizar reconocimiento facial
+        if face_success and voice_success:
+            if face_id_norm == voice_id_norm:
+                final_success = True
+                message = f"Autenticación dual exitosa: {face_identity}"
+            else:
+                # Si la cara está muy confiada, permitir acceso aunque la voz no coincida
+                if face_result.get('confidence', 0) > 90:
+                    final_success = True
+                    message = f"Autenticación por rostro: {face_identity} (voz: {voice_identity})"
+                else:
+                    final_success = False
+                    message = f"Identidad no coincide: Cara={face_identity}, Voz={voice_identity}"
+        elif face_success and not voice_success:
+            # Permitir acceso solo con cara si la confianza es alta
+            if face_result.get('confidence', 0) > 90:
+                final_success = True
+                message = f"Autenticación por rostro: {face_identity}"
+            else:
+                final_success = False
+                message = f"Cara reconocida ({face_identity}), pero voz no reconocida"
+        elif not face_success and voice_success:
+            message = f"Voz reconocida ({voice_identity}), pero cara no reconocida"
+        else:
+            message = "No se reconoció ni cara ni voz"
+            
+        print(f"✅ Resultado Dual: {final_success} ({message})")
+            
+        return JsonResponse({
+            'success': final_success,
+            'message': message,
+            'face_result': face_result,
+            'voice_result': voice_result
+        })
+
+    except Exception as e:
+        print(f"❌ ERROR DUAL: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': f'Error interno: {str(e)}'
+        }, status=500)

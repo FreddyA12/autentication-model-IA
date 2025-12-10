@@ -29,6 +29,9 @@ BATCH_SIZE = 4
 TEST_SIZE = 0.2
 
 def build_model(input_dim, num_classes):
+    """
+    MLP classifier for ECAPA-TDNN embeddings (192 dimensions)
+    """
     model = keras.Sequential([
         layers.Input(shape=(input_dim,)),
         

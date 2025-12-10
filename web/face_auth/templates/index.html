@@ -41,6 +41,12 @@
                 </svg>
                 Reconocimiento de Voz
             </button>
+            <button class="tab-btn" data-tab="dual">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+                Autenticación Dual
+            </button>
         </div>
 
         <!-- Main Content -->
@@ -283,6 +289,58 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Dual Tab Content -->
+            <div id="dualTab" class="tab-content">
+                <div class="dual-section">
+                    <div class="dual-container" style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                        
+                        <!-- Video -->
+                        <div class="camera-container" style="position: relative; width: 100%; max-width: 640px;">
+                            <video id="dualVideo" autoplay playsinline style="width: 100%; border-radius: 12px;"></video>
+                            <canvas id="dualCanvas" style="display: none;"></canvas>
+                        </div>
+
+                        <!-- Audio Visualizer -->
+                        <div class="voice-visualizer" style="width: 100%; max-width: 640px; height: 100px; background: rgba(0,0,0,0.2); border-radius: 12px;">
+                            <canvas id="dualWaveform" width="600" height="100"></canvas>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="camera-status" id="dualStatus" style="margin-top: 10px;">
+                            <span class="status-text">Sistema inactivo</span>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="camera-controls">
+                            <button id="startDualAuth" class="btn btn-primary">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm12 0v10l4 2V3l-4 2z"/>
+                                </svg>
+                                Iniciar Sistema
+                            </button>
+                            <button id="captureDualBtn" class="btn btn-success" disabled>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <circle cx="10" cy="10" r="8"/>
+                                </svg>
+                                Capturar y Autenticar
+                            </button>
+                            <button id="stopDualAuth" class="btn btn-secondary" style="display: none;">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <rect width="20" height="20" rx="2"/>
+                                </svg>
+                                Detener
+                            </button>
+                        </div>
+
+                        <!-- Result Card -->
+                        <div class="result-card" id="dualResultCard" style="display: none; width: 100%; max-width: 640px; margin-top: 20px;">
+                            <div id="dualResultContent"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Footer Info -->
@@ -305,6 +363,15 @@
                     <li>El modelo MLP clasificará tu identidad</li>
                 </ol>
             </div>
+            <div class="info-card" id="dualInfo" style="display: none;">
+                <h4>🔐 Autenticación Dual</h4>
+                <ol>
+                    <li>Inicia el sistema (Cámara + Micrófono)</li>
+                    <li>Presiona "Capturar y Autenticar"</li>
+                    <li>Se capturará tu rostro y 3 segundos de voz</li>
+                    <li>Ambos deben coincidir para el acceso</li>
+                </ol>
+            </div>
             <div class="info-card">
                 <h4>🔒 Privacidad</h4>
                 <p>Los datos biométricos se procesan localmente y no se almacenan. Sistema basado en redes neuronales profundas.</p>
@@ -315,6 +382,7 @@
     <script src="{% static 'js/audio-recorder.js' %}"></script>
     <script src="{% static 'js/camera.js' %}"></script>
     <script src="{% static 'js/voice.js' %}"></script>
+    <script src="{% static 'js/dual_auth.js' %}"></script>
     <script src="{% static 'js/tabs.js' %}"></script>
 </body>
 </html>

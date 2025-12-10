@@ -107,10 +107,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Face recognition model paths (entrenado en scripts 1-3)
-FACE_MODEL_PATH = str(PROJECT_ROOT / 'dataset' / 'models' / 'face_classifier_best.keras')
-CLASS_INDICES_PATH = str(PROJECT_ROOT / 'dataset' / 'models' / 'class_indices.json')
-EMBEDDINGS_DIR = str(PROJECT_ROOT / 'dataset' / 'embeddings')
+FACE_MODEL_PATH = str(PROJECT_ROOT / 'dataset' / 'face' / 'models' / 'face_classifier.keras')
+CLASS_INDICES_PATH = str(PROJECT_ROOT / 'dataset' / 'face' / 'models' / 'class_indices.json')
+EMBEDDINGS_DIR = str(PROJECT_ROOT / 'dataset' / 'face' / 'embeddings')
 
 # Recognition thresholds
 CONFIDENCE_THRESHOLD = 0.95  # 95%
-VOICE_CONFIDENCE_THRESHOLD = 0.80  # 80% - Subido para mejor detección de desconocidos
+VOICE_CONFIDENCE_THRESHOLD = 0.85  # 85% - Alto para evitar falsos positivos

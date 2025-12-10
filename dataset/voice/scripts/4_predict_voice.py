@@ -1,14 +1,15 @@
 """
-Script para predecir identidad por voz.
+Script para predecir identidad por voz usando ECAPA-TDNN.
 Uso: python dataset/voice/scripts/4_predict_voice.py
 """
 
 import json
 import numpy as np
-import librosa
-import tensorflow_hub as hub
+import torch
+import torchaudio
 import tensorflow as tf
 from pathlib import Path
+from speechbrain.inference.speaker import EncoderClassifier
 
 # Configuración
 MODELS_DIR = Path("dataset/voice/models")
@@ -21,23 +22,45 @@ CONFIDENCE_THRESHOLD = 0.70
 class VoicePredictor:
     def __init__(self):
         print("Cargando modelos...")
-        self.yamnet = hub.load('https://tfhub.dev/google/yamnet/1')
+        
+        # ECAPA-TDNN
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        from speechbrain.utils.fetching import LocalStrategy
+        
+        self.encoder = EncoderClassifier.from_hparams(
+            source="speechbrain/spkrec-ecapa-voxceleb",
+            savedir="pretrained_models/spkrec-ecapa-voxceleb",
+            run_opts={"device": device},
+            local_strategy=LocalStrategy.COPY
+        )
+        
+        # MLP Classifier
         self.mlp = tf.keras.models.load_model(MODEL_PATH)
+        
+        # Label map
         with open(CLASS_INDICES_PATH, 'r') as f:
             self.label_map = {int(k): v for k, v in json.load(f).items()}
 
     def predict(self, audio_path):
-        # Preprocesar
-        wav, _ = librosa.load(str(audio_path), sr=16000, mono=True)
-        if len(wav.shape) > 1: wav = np.mean(wav, axis=1)
-        waveform = tf.convert_to_tensor(wav, dtype=tf.float32)
+        # Cargar audio
+        signal, fs = torchaudio.load(str(audio_path))
         
-        # Embedding
-        _, embeddings, _ = self.yamnet(waveform)
-        emb = tf.reduce_mean(embeddings, axis=0).numpy()
+        # Convertir a mono si es estéreo
+        if signal.shape[0] > 1:
+            signal = torch.mean(signal, dim=0, keepdim=True)
+        
+        # Resamplear a 16kHz si es necesario
+        if fs != 16000:
+            resampler = torchaudio.transforms.Resample(fs, 16000)
+            signal = resampler(signal)
+        
+        # Extraer embedding
+        with torch.no_grad():
+            embedding = self.encoder.encode_batch(signal)
+            embedding = embedding.squeeze().cpu().numpy()
         
         # Predicción
-        probs = self.mlp.predict(np.expand_dims(emb, axis=0), verbose=0)[0]
+        probs = self.mlp.predict(np.expand_dims(embedding, axis=0), verbose=0)[0]
         idx = int(np.argmax(probs))
         conf = float(probs[idx])
         pred_label = self.label_map[idx]

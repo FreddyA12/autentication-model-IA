@@ -13,6 +13,9 @@ mtcnn
 pillow
 moviepy
 
+torch==2.6.0
+torchaudio==2.6.0
+speechbrain
 librosa
 soundfile
 sounddevice
