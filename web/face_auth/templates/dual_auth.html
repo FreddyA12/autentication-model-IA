@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureAuth - Autenticación Biométrica</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e40af;
+            font-weight: 700;
+            font-size: 24px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .brand-name {
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .brand-tagline {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .section-icon {
+            font-size: 24px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1f2937;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .video-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .face-box {
+            position: absolute;
+            border: 3px solid #10b981;
+            border-radius: 8px;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.7);
+            display: none;
+            transition: all 0.1s ease;
+        }
+
+        .waveform-container {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            background: #1f2937;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #waveform {
+            width: 100%;
+            height: 100%;
+        }
+
+        .mic-placeholder {
+            position: absolute;
+            font-size: 30px;
+            opacity: 0.15;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: #f9fafb;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d5db;
+            transition: all 0.3s;
+        }
+
+        .status-dot.active {
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+
+        .status-dot.recording {
+            background: #ef4444;
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .status-text {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 4px 16px rgba(30, 64, 175, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-content {
+            text-align: center;
+            padding: 24px;
+            background: #f9fafb;
+            border-radius: 16px;
+        }
+
+        .result-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .result-icon.success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #047857;
+        }
+
+        .result-icon.error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #dc2626;
+        }
+
+        .result-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .result-message {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        .details-toggle {
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            color: #6b7280;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .details-toggle:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .result-details {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            animation: slideDown 0.3s ease;
+        }
+
+        .result-details.show {
+            display: grid;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .detail-card {
+            background: white;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        .detail-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .detail-confidence {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .instruction-dialog {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .instruction-dialog.show {
+            display: flex;
+        }
+
+        .instruction-card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            margin: auto;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .instruction-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .instruction-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+
+        .instruction-text {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .instruction-steps {
+            text-align: left;
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .instruction-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instruction-steps li {
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .instruction-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .instruction-buttons .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+
+            .auth-card {
+                padding: 20px;
+            }
+
+            .brand-name {
+                font-size: 20px;
+            }
+
+            .section-title {
+                font-size: 14px;
+            }
+
+            .btn {
+                min-width: 100%;
+            }
+
+            .result-details {
+                grid-template-columns: 1fr;
+            }
+
+            .instruction-card {
+                padding: 24px;
+                max-height: 85vh;
+            }
+
+            .instruction-icon {
+                font-size: 48px;
+            }
+
+            .instruction-title {
+                font-size: 18px;
+            }
+
+            .instruction-text {
+                font-size: 13px;
+            }
+
+            .instruction-steps {
+                padding: 16px;
+            }
+
+            .instruction-steps li {
+                font-size: 13px;
+            }
+
+            .instruction-buttons {
+                flex-direction: column;
+            }
+
+            .instruction-buttons .btn {
+                width: 100%;
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand">
+            <div class="brand-logo">S</div>
+            <div class="brand-name">SecureAuth</div>
+            <div class="brand-tagline">Autenticación Biométrica Dual</div>
+        </div>
+
+        <div class="auth-card">
+            <!-- Facial Recognition Section -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">Reconocimiento Facial</span>
+                </div>
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    <div class="video-overlay">
+                        <div class="face-box" id="faceBox"></div>
+                    </div>
+                </div>
+                <div class="status-bar">
+                    <div class="status-indicator">
+                        <span class="status-dot" id="cameraStatus"></span>
+                        <span class="status-text" id="cameraText">Cámara inactiva</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Recognition Section -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">Reconocimiento de Voz</span>
+                </div>
+                <div class="waveform-container">
+                    <canvas id="waveform" width="400" height="50"></canvas>
+                    <div class="mic-placeholder" id="micPlaceholder">🎙️</div>
+                </div>
+                <div class="status-bar">
+                    <div class="status-indicator">
+                        <span class="status-dot" id="audioStatus"></span>
+                        <span class="status-text" id="audioText">Listo para grabar</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button id="authBtn" class="btn btn-primary">
+                    🔓 Autenticar
+                </button>
+                <button id="stopBtn" class="btn btn-secondary">
+                    ⏹ Detener
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div class="result-section" id="result"></div>
+        </div>
+
+        <div class="footer">
+            <div>© 2024 SecureAuth Enterprise</div>
+            <div class="footer-links">
+                <a href="/face">Solo Rostro</a>
+                <a href="/voice">Solo Voz</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="instruction-dialog" id="instructionDialog">
+        <div class="instruction-card">
+            <div class="instruction-icon">🎙️</div>
+            <h2 class="instruction-title">Autenticación por Voz</h2>
+            <p class="instruction-text">
+                El sistema grabará automáticamente cuando detecte que estás hablando.
+            </p>
+            <div class="instruction-steps">
+                <ol>
+                    <li>Asegúrate de estar en un lugar tranquilo</li>
+                    <li>Cuando presiones "Comenzar", di tu nombre completo</li>
+                    <li>La grabación iniciará automáticamente al detectar tu voz</li>
+                    <li>Habla de forma clara durante 3 segundos</li>
+                </ol>
+            </div>
+            <div class="instruction-buttons">
+                <button class="btn btn-secondary" onclick="document.getElementById('instructionDialog').classList.remove('show')" style="flex: 1">
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" id="startAuthBtn" style="flex: 1">
+                    Comenzar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loading">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <div class="loading-text">Procesando datos biométricos...</div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/audio-recorder.js' %}"></script>
+    <script src="{% static 'js/dual_auth_auto.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconocimiento Facial</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1><a href="/" style="color: inherit; text-decoration: none;">← Autenticación Facial</a></h1>
+            </div>
+            <p class="subtitle">Modo individual (Solo rostro)</p>
+        </header>
+
+        <div class="main-content">
+            <div id="faceTab" class="tab-content active">
+                <div class="camera-section">
+                    <div class="camera-container" id="cameraContainer">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <div id="detectedBox" class="detected-box" style="display:none; position:absolute; border:3px solid #10b981; border-radius:8px; box-shadow:0 0 12px rgba(16,185,129,0.7); pointer-events:none;"></div>
+                        
+                        <div class="camera-overlay">
+                            <div class="face-guide">
+                                <div class="corner top-left"></div>
+                                <div class="corner top-right"></div>
+                                <div class="corner bottom-left"></div>
+                                <div class="corner bottom-right"></div>
+                            </div>
+                        </div>
+
+                        <div class="camera-status" id="cameraStatus">
+                            <span class="status-icon">📷</span>
+                            <span class="status-text">Cámara desactivada</span>
+                        </div>
+                    </div>
+
+                    <div class="camera-controls">
+                        <button id="startCamera" class="btn btn-primary">Activar Cámara</button>
+                        <button id="captureBtn" class="btn btn-success" disabled>Capturar</button>
+                        <button id="stopCamera" class="btn btn-secondary" disabled>Detener</button>
+                    </div>
+                </div>
+
+                <div id="resultCard" class="result-card" style="display:none;">
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/camera.js' %}"></script>
+</body>
+</html>

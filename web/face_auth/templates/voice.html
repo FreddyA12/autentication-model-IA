@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconocimiento de Voz</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1><a href="/" style="color: inherit; text-decoration: none;">← Autenticación de Voz</a></h1>
+            </div>
+            <p class="subtitle">Modo individual (Solo voz)</p>
+        </header>
+
+        <div class="main-content">
+            <div id="voiceTab" class="tab-content active">
+                <div class="voice-section">
+                    <div class="audio-visualizer-container">
+                        <canvas id="visualizer" width="600" height="200"></canvas>
+                        <div class="visualizer-overlay">
+                            <span class="mic-icon">🎤</span>
+                            <p class="hint">Presiona "Grabar" y habla durante 3 segundos</p>
+                        </div>
+                    </div>
+
+                    <div id="voiceStatus" class="voice-status">
+                        <span class="status-icon">🔴</span>
+                        <span>Listo para grabar</span>
+                    </div>
+
+                    <div class="voice-controls">
+                        <button id="startRecording" class="btn btn-primary">Grabar Voz</button>
+                        <button id="stopRecording" class="btn btn-danger" style="display:none;" disabled>Detener</button>
+                        <button id="submitVoice" class="btn btn-success" style="display:none;" disabled>Autenticar</button>
+                    </div>
+
+                    <div id="voiceResultCard" class="result-card" style="display:none;">
+                        <div id="voiceResultContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/audio-recorder.js' %}"></script>
+    <script src="{% static 'js/voice.js' %}"></script>
+</body>
+</html>

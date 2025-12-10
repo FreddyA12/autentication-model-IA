@@ -13,6 +13,27 @@ from .face_service import get_face_service
 from .voice_service import voice_service
 
 
+def dual_auth_page(request):
+    """
+    Página principal de autenticación dual automática
+    """
+    return render(request, 'dual_auth.html')
+
+
+def face_page(request):
+    """
+    Página de reconocimiento facial individual
+    """
+    return render(request, 'face.html')
+
+
+def voice_page(request):
+    """
+    Página de reconocimiento de voz individual
+    """
+    return render(request, 'voice.html')
+
+
 def index(request):
     """
     Página principal con interfaz de cámara web
@@ -182,7 +203,7 @@ def authenticate_dual(request):
             except:
                 pass
                 
-        # 4. Lógica de Autenticación Dual (con fallback a Face-only)
+        # 4. Lógica de Autenticación Dual ESTRICTA
         face_identity = face_result.get('identity')
         voice_identity = voice_result.get('identity')
         
@@ -196,29 +217,20 @@ def authenticate_dual(request):
         final_success = False
         message = ""
         
-        # NUEVA LÓGICA: Priorizar reconocimiento facial
+        # AUTENTICACIÓN DUAL ESTRICTA: Ambos deben coincidir
         if face_success and voice_success:
             if face_id_norm == voice_id_norm:
                 final_success = True
                 message = f"Autenticación dual exitosa: {face_identity}"
             else:
-                # Si la cara está muy confiada, permitir acceso aunque la voz no coincida
-                if face_result.get('confidence', 0) > 90:
-                    final_success = True
-                    message = f"Autenticación por rostro: {face_identity} (voz: {voice_identity})"
-                else:
-                    final_success = False
-                    message = f"Identidad no coincide: Cara={face_identity}, Voz={voice_identity}"
-        elif face_success and not voice_success:
-            # Permitir acceso solo con cara si la confianza es alta
-            if face_result.get('confidence', 0) > 90:
-                final_success = True
-                message = f"Autenticación por rostro: {face_identity}"
-            else:
                 final_success = False
-                message = f"Cara reconocida ({face_identity}), pero voz no reconocida"
+                message = f"Identidades no coinciden: Cara={face_identity}, Voz={voice_identity}"
+        elif face_success and not voice_success:
+            final_success = False
+            message = f"Voz no reconocida. Cara detectada: {face_identity}"
         elif not face_success and voice_success:
-            message = f"Voz reconocida ({voice_identity}), pero cara no reconocida"
+            final_success = False
+            message = f"Cara no reconocida. Voz detectada: {voice_identity}"
         else:
             message = "No se reconoció ni cara ni voz"
             
