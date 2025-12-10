@@ -1,28 +1,24 @@
-# Core & Web
 Django
 requests
 
-# Machine Learning & Deep Learning (TensorFlow)
 tensorflow
 tensorflow-hub
 keras
+keras-facenet
 h5py
 scikit-learn
 
-# Computer Vision & Face Recognition
 opencv-python
 mtcnn
 pillow
 moviepy
 
-# Audio Processing & Voice Recognition
 librosa
 soundfile
 sounddevice
 numpy
 matplotlib
 
-# Utilities
 tqdm
 colorama
 lz4
