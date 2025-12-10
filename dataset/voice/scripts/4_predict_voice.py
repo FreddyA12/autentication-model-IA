@@ -88,7 +88,7 @@ def main():
         audios = list(person_dir.glob("*.wav"))
         if audios:
             identity, conf, _ = predictor.predict(audios[0])
-            check = "✅" if identity == person_dir.name else "❌"
+            check = "" if identity == person_dir.name else "❌"
             print(f"{check} {person_dir.name}: Predicho {identity} ({conf:.1%})")
 
     # Probar nuevos audios
@@ -100,11 +100,11 @@ def main():
     for ext in ['*.wav', '*.opus', '*.mp3', '*.m4a', '*.ogg']:
         for audio in TEST_AUDIOS_DIR.glob(ext):
             identity, conf, probs = predictor.predict(audio)
-            print(f"\n🎤 {audio.name}")
+            print(f"\n {audio.name}")
             if identity == "unknown":
-                print(f"⚠️  DESCONOCIDO (Max conf: {conf:.1%})")
+                print(f" DESCONOCIDO (Max conf: {conf:.1%})")
             else:
-                print(f"✅ {identity.upper()} ({conf:.1%})")
+                print(f" {identity.upper()} ({conf:.1%})")
             
             # Top 3
             top3 = sorted(probs.items(), key=lambda x: x[1], reverse=True)[:3]

@@ -102,11 +102,11 @@ if __name__ == "__main__":
                 name, conf, probs = predict(path)
 
                 if name == "NO_DETECTADO":
-                    print(f"❌ {file:<20} -> No detectado")
+                    print(f"{file:<20} -> No detectado")
                 elif name == "DESCONOCIDO":
-                    print(f"⚠️ {file:<20} -> DESCONOCIDO ({conf*100:.1f}%)")
+                    print(f"{file:<20} -> DESCONOCIDO ({conf*100:.1f}%)")
                 else:
-                    print(f"✅ {file:<20} -> {name} ({conf*100:.1f}%)")
+                    print(f"{file:<20} -> {name} ({conf*100:.1f}%)")
 
         print("\n--- PRUEBA CON DATASET ---")
         correct = 0

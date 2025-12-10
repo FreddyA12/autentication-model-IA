@@ -87,7 +87,6 @@ def main():
             for audio_file in person_dir.glob(ext):
                 process_audio(audio_file, person_out, person_name)
 
-    print("\nListo. Siguiente: python dataset/voice/scripts/2_generate_voice_embeddings.py")
 
 if __name__ == "__main__":
     main()

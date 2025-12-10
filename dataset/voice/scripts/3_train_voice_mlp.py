@@ -29,9 +29,7 @@ BATCH_SIZE = 4
 TEST_SIZE = 0.2
 
 def build_model(input_dim, num_classes):
-    """
-    MLP classifier for ECAPA-TDNN embeddings (192 dimensions)
-    """
+   
     model = keras.Sequential([
         layers.Input(shape=(input_dim,)),
         
@@ -89,6 +87,7 @@ def main():
         stratify=y
     )
 
+    #Se calcularon class weights para balancear clases desiguales
     classes = np.unique(y_train)
     class_weights_values = compute_class_weight(
         class_weight='balanced',

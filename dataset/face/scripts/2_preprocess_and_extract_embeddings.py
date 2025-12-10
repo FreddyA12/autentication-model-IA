@@ -43,7 +43,10 @@ def process_image(img_path):
         return None, None
         
     # Extraer embedding
+    #(batch_size, height, width, channels)
     samples = np.expand_dims(face_resized, axis=0)
+    
+    #(convoluciones, normalizaciones, dense layers) 512 D
     embedding = embedder.embeddings(samples)[0]
     
     return face_resized, embedding
